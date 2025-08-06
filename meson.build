@@ -14,6 +14,7 @@ exe = executable(
   'openbmc_onlogic_power_control.cpp',
   dependencies : dependencies,
   install : true,
+  install_dir: get_option('bindir'),
 )
 
 test('basic', exe)
