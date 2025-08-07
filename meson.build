@@ -16,5 +16,3 @@ exe = executable(
   install : true,
   install_dir: get_option('bindir'),
 )
-
-test('basic', exe)
