@@ -22,7 +22,7 @@ exe = executable(
 systemd = dependency('systemd')
 if systemd.found()
   install_data(
-    'service_files/openbmc_onlogic_power_control.service',
+    'service_files/openbmc-onlogic-power-control.service',
     install_dir: systemd.get_variable('systemd_system_unit_dir'),
   )
 endif
