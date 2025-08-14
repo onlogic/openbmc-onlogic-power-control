@@ -1,0 +1,10 @@
+[Unit]
+Description=System unit to run onlogic power control
+
+[Service]
+Type=oneshot
+RemainAfterExit=no
+ExecStart=/usr/bin/openbmc_onlogic_power_control
+
+[Install]
+WantedBy=chassis-system-reset.target

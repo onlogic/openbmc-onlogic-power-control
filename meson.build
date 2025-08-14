@@ -7,12 +7,22 @@ project(
 )
 
 dependencies = [
+  dependency('libsystemd'),
 ]
 
 exe = executable(
   'openbmc-onlogic-power-control',
-  'openbmc_onlogic_power_control.cpp',
+  'src/openbmc_onlogic_power_control.cpp',
+  include_directories: include_directories('src'),
   dependencies : dependencies,
   install : true,
   install_dir: get_option('bindir'),
 )
+
+systemd = dependency('systemd')
+if systemd.found()
+  install_data(
+    'service_files/openbmc_onlogic_power_control.service',
+    install_dir: systemd.get_variable('systemd_system_unit_dir'),
+  )
+endif
