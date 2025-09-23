@@ -6,10 +6,9 @@ project(
   default_options : ['warning_level=3', 'cpp_std=c++23'],
 )
 
-systemd = dependency('systemd')
-
 bindir = get_option('bindir')
-systemd_system_unit_dir = systemd.get_variable('systemd_system_unit_dir')
+
+systemd = dependency('systemd')
 
 libsystemd = dependency('libsystemd')
 
