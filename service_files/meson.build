@@ -1,5 +1,5 @@
 unit_files = [
-    'openbmc-onlogic-power-control.service',
+    'onlogic-power-control.service',
 ]
 
 fs = import('fs')
