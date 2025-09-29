@@ -1,3 +1,4 @@
 # Table of contents
 
-* [Page](README.md)
+* [OpenBMC Power Control](README.md)
+* [DBus Interfaces](dbus-interfaces.md)
