@@ -1,12 +1,24 @@
-#include <stdio.h>
+#include <org/openbmc/control/Power/client.hpp>
+#include <org/openbmc/control/Power/server.hpp>
+#include <sdbusplus/server.hpp>
 
-#define PROJECT_NAME "openbmc-onlogic-power-control"
+using PowerInherit = sdbusplus::server::object_t<sdbusplus::server::org::openbmc::control::Power>;
 
-int main(int argc, char **argv) {
-    if (argc != 1) {
-        printf("%s takes no arguments.\n", argv[0]);
-        return 1;
-    }
-    printf("This is project %s.\n", PROJECT_NAME);
-    return 0;
+struct Power : PowerInherit
+{
+    Power(sdbusplus::bus_t& bus, const char* path) : PowerInherit(bus, path) {
+        // TODO(BMC-32): Have BMC receive pgood signal from sequence MCU
+        pgood(1);
+    };
+};
+
+int main() {
+    auto b = sdbusplus::bus::new_default();
+    sdbusplus::server::manager_t m{b, Power::instance_path};
+
+    b.request_name(Power::default_service);
+
+    Power p0{b, Power::instance_path};
+
+    b.process_loop();
 }

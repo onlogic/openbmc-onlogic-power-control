@@ -1,0 +1,13 @@
+description: >
+  "org.openbmc.control.Power -- Power Interface"
+properties:
+  - name: pgood
+    default: 0
+    type: int64
+    description: "power good signal"
+paths:
+  - instance: /org/openbmc/control/power0
+    description: Expected path of the instance.
+service_names:
+  - default: org.openbmc.control.Power
+    description: Expected service name for the instance.
