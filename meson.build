@@ -13,4 +13,3 @@ systemd = dependency('systemd')
 libsystemd = dependency('libsystemd')
 
 subdir('src')
-subdir('service_files')
