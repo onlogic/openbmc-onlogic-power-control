@@ -1,8 +1,7 @@
-sdbusplus_dep = dependency('sdbusplus')
 sdbusplusplus_prog = find_program('sdbus++', native: true)
 sdbuspp_gen_meson_prog = find_program('sdbus++-gen-meson', native: true)
 sdbusplusplus_depfiles = files()
-if sdbusplus_dep.type_name() == 'internal'
+if sdbusplus.type_name() == 'internal'
   sdbusplusplus_depfiles = subproject('sdbusplus').get_variable('sdbusplusplus_depfiles')
 endif
 
@@ -17,7 +16,9 @@ executable(
   'onlogic_power_control_main.cpp',
   generated_sources,
   dependencies : [
-    sdbusplus_dep,
+    sdbusplus,
+    phosphor_dbus_interfaces,
+    phosphor_logging,
   ],
   install : true,
   implicit_include_directories: false,

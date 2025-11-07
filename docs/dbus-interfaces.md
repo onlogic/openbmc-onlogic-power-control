@@ -21,3 +21,7 @@ Currently the OpenBMC Power Control component implements the following interface
 
 1. org.openbmc.control.Power\
    This interface provides the `pgood` signal that OpenBMC depends upon to enter the BMC::Ready state. It signifies when the host chassis's power rails have stabilized.
+1. xyz.openbmc_project.state.Host\
+   This interface provides the `RequestedHostTransition`, `AllowedHostTransitions`, `CurrentHostState` and `RestartCause` properties related to Host system operation.
+1. xyz.openbmc_project.state.Chassis\
+   This interface provides the `RequestedPowerTransition`, `CurrentPowerState`, `CurrentPowerStatus` and `LastStateChangeTime` properties related to Host's Chassis power states.
