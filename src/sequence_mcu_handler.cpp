@@ -1,46 +1,46 @@
 #include "sequence_mcu_handler.hpp"
 
-OperationStatus SequenceMCUHandler::IssueAwakeCmd(){
+SmbusOperationStatus SequenceMCUHandler::IssueAwakeCmd(){
 
-    return OperationStatus::kOperationStatus_Success;
+    return SmbusOperationStatus::kSmbusOperationStatus_Success;
 }
 
-OperationStatus SequenceMCUHandler::IssueSoftReset(){
+SmbusOperationStatus SequenceMCUHandler::IssueSoftReset(){
 
-    return OperationStatus::kOperationStatus_Success;
+    return SmbusOperationStatus::kSmbusOperationStatus_Success;
 }
 
-OperationStatus SequenceMCUHandler::IssueHardReset(){
+SmbusOperationStatus SequenceMCUHandler::IssueHardReset(){
 
-    return OperationStatus::kOperationStatus_Success;
+    return SmbusOperationStatus::kSmbusOperationStatus_Success;
 }
 
-OperationStatus SequenceMCUHandler::IssueSoftShutdown(){
+SmbusOperationStatus SequenceMCUHandler::IssueSoftShutdown(){
 
-    return OperationStatus::kOperationStatus_Success;
+    return SmbusOperationStatus::kSmbusOperationStatus_Success;
 }
 
-OperationStatus SequenceMCUHandler::IssueHardShutdown(){
+SmbusOperationStatus SequenceMCUHandler::IssueHardShutdown(){
 
-    return OperationStatus::kOperationStatus_Success;
+    return SmbusOperationStatus::kSmbusOperationStatus_Success;
 }
 
-OperationStatus SequenceMCUHandler::GetPowerState(PowerState& current_power_state){
+SmbusOperationStatus SequenceMCUHandler::GetPowerState(PowerState& current_power_state){
 
-    return OperationStatus::kOperationStatus_Success;
+    return SmbusOperationStatus::kSmbusOperationStatus_Success;
 }
 
-OperationStatus SequenceMCUHandler::GetTransitionCause(TransitionCause& transition_cause){
+SmbusOperationStatus SequenceMCUHandler::GetTransitionCause(TransitionCause& transition_cause){
 
-    return OperationStatus::kOperationStatus_Success;
+    return SmbusOperationStatus::kSmbusOperationStatus_Success;
 }
 
-OperationStatus SequenceMCUHandler::GetStateAndTransitionCause(std::pair<PowerState, TransitionCause>& gst_pair) {
+SmbusOperationStatus SequenceMCUHandler::GetStateAndTransitionCause(std::pair<PowerState, TransitionCause>& gst_pair) {
 
-    return OperationStatus::kOperationStatus_Success;
+    return SmbusOperationStatus::kSmbusOperationStatus_Success;
 }
 
-OperationStatus SequenceMCUHandler::GetCapability(SMBUSCapability& get_capability){
+SmbusOperationStatus SequenceMCUHandler::GetCapability(SMBUSCapability& get_capability){
 
-    return OperationStatus::kOperationStatus_Success;
+    return SmbusOperationStatus::kSmbusOperationStatus_Success;
 }
