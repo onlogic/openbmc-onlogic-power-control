@@ -14,6 +14,7 @@ subdir('gen')
 executable(
   'onlogic-power-control',
   'onlogic_power_control_main.cpp',
+  'sequence_mcu_handler.cpp',
   'smbus_manager.cpp',
   generated_sources,
   dependencies : [
