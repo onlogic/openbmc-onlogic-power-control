@@ -14,6 +14,7 @@ subdir('gen')
 executable(
   'onlogic-power-control',
   'onlogic_power_control_main.cpp',
+  'smbus_manager.cpp',
   generated_sources,
   dependencies : [
     sdbusplus,
@@ -22,6 +23,9 @@ executable(
   ],
   install : true,
   implicit_include_directories: false,
-  include_directories: include_directories('gen'),
+  include_directories: [
+    include_directories('gen'),
+    include_directories('../lib'),
+  ],
   install_dir: bindir,
 )

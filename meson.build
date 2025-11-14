@@ -8,8 +8,6 @@ project(
 
 bindir = get_option('bindir')
 
-systemd = dependency('systemd')
-
 libsystemd = dependency('libsystemd')
 sdbusplus = dependency('sdbusplus')
 phosphor_dbus_interfaces = dependency('phosphor-dbus-interfaces')

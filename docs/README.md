@@ -13,6 +13,7 @@ For details on the DBus interfaces that are implemented in this package, or info
 1. Install Boost and Meson via your OS package provider
 1. Create a python venv `python -m venv .venv`
 1. Install python requirements `pip install -r requirements.txt`
+1. Install `sudo apt install libsystemd-dev`
 1. Setup Meson build environment `meson setup builddir`
 1. Build the project `cd builddir && ninja`
 
@@ -24,8 +25,10 @@ To perform a tighter development loop (including onboard debugging) you will nee
 
     Add the following to your `meta-onlogic/conf/layer.conf`:
     ```
-    IMAGE_INSTALL:append = " onlogic-power-control-dbg " # Replacing onlogic-power-control with the debug version
-    EXTRA_IMAGE_FEATURES:append = " tools-debug" # Add GDB to the image
+    # Replacing onlogic-power-control with the debug version
+    IMAGE_INSTALL:append = " onlogic-power-control-dbg "
+    # Add GDB to the image
+    EXTRA_IMAGE_FEATURES:append = " tools-debug" 
     ```
 1. OnLogic Power Control recipe needs to be pulling from your remote development branch
 
@@ -42,6 +45,7 @@ Steps to copy over a new build and debug:
     docker run ... openbmc_build bash
     . setup <board_name> /build/<board_name>
     ```
+    Example: . setup evb-stm32mp257f-dk ./build/evb-stm32mp257f-dk
 1. Specifically build `onlogic-power-control`
     ```
     bitbake onlogic-power-control
@@ -50,7 +54,9 @@ Steps to copy over a new build and debug:
     ```
     bitbake -c devshell onlogic-power-control
     ```
-1. In another terminal make sure the `onlogic-power-control\@0.service` is stopped on your development board. Copying the files over will fail if they're in use.
+1. In another terminal, make sure the `onlogic-power-control@0.service` is stopped on your board if it's in use.
+
+or
     ```
     ssh root@${BOARD_IP}
     systemctl stop onlogic-power-control\@0
@@ -63,9 +69,15 @@ Steps to copy over a new build and debug:
     scp package/usr/src/debug/onlogic-power-control/0.1+gitAUTOINC/src/onlogic_power_control_main.cpp root@${BOARD_IP}:/usr/src/debug/onlogic-power-control/0.1+gitAUTOINC/src/
     ```
     You'll need to do each SCP command independently as you'll need to type the root user password for your board.
+1. In the BMC terminal, `systemctl restart onlogic-power-control@0` to restart the service after replacing the package
 1. Debug an instance of the application (See [the GDB Cheat Sheet](https://darkdust.net/files/GDB%20Cheat%20Sheet.pdf) or Google if you need help debugging)
     ```
     ssh root@${BOARD_IP}
     gdb /usr/bin/onlogic-power-control
     ```
-
+1. To run the interface directly with debug logging enabled, use:
+``` 
+export PHOSPHOR_LOG_LEVEL=debug
+/usr/bin/onlogic-power-control
+```
+This will start the application with detailed debug output

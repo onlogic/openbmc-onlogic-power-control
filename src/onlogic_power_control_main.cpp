@@ -12,6 +12,8 @@
 #include <xyz/openbmc_project/State/Host/server.hpp>    // Generated from subprojects/phosphor-dbus-interfaces/yaml/xyz/openbmc_project/State/Host.interface.yaml
 #include <xyz/openbmc_project/Common/error.hpp>         // Generated from subprojects/phosphor-dbus-interfaces not sure the exact yaml file
 
+#include "smbus_manager.hpp"
+
 PHOSPHOR_LOG2_USING;
 
 static uint64_t getCurrentTimeMs() {
@@ -58,14 +60,15 @@ public:
 class Chassis : ObjectServer<sdbusplus::server::xyz::openbmc_project::state::Chassis>
 {
 public:
-    Chassis(std::shared_ptr<sdbusplus::asio::connection> conn, const std::string& node)
-        : ObjectServer(*conn, getPath(node).c_str(), Chassis::default_service, node), node(node)
+    Chassis(std::shared_ptr<sdbusplus::asio::connection> conn, const std::string& node, SMBUSManager& smbus)
+        : ObjectServer(*conn, getPath(node).c_str(), Chassis::default_service, node), node(node), smbus_(smbus)
     {
         determineInitialState();
     };
 
 private:
     const std::string node;
+    SMBUSManager& smbus_;
 
 public:
 
@@ -74,7 +77,22 @@ public:
     /// @return 
     Transition requestedPowerTransition(Transition value)
     {
-        info("Chassis{NODE}: Requested power transition from {OLD} to {NEW}", "NODE", node, "OLD", sdbusplus::server::xyz::openbmc_project::state::Chassis::requestedPowerTransition(), "NEW", value);
+        // info("Chassis{NODE}: Requested power transition from {OLD} to {NEW}", "NODE", node, "OLD", sdbusplus::server::xyz::openbmc_project::state::Chassis::requestedPowerTransition(), "NEW", value);
+        switch (value) {
+            case(Chassis::Transition::On) : {
+                smbus_.SmbusWriteByte(0x04, 0x00);
+                info("Awake Signal written");
+                break;
+            } case (Chassis::Transition::Off) : {
+                smbus_.SmbusWriteByte(0x04, 0x03);
+                info("Hard Off Signal written");
+                break;
+            } default : {
+                error("Unhandled Request");
+                break;
+            }
+        }
+
         return sdbusplus::server::xyz::openbmc_project::state::Chassis::requestedPowerTransition(value);
     }
 
@@ -108,7 +126,7 @@ public:
     /// @return - The updated power status
     PowerStatus currentPowerStatus(PowerStatus value)
     {
-        // Noop hook: add logic here if needed
+        // Noop hook: add logic here if needed        
         info("Chassis{NODE}: Current power status change to {NEW}", "NODE", node, "NEW", value);
         sdbusplus::server::xyz::openbmc_project::state::Chassis::currentPowerStatus(value);
         lastStateChangeTime(getCurrentTimeMs());
@@ -154,8 +172,8 @@ public:
 class Host : ObjectServer<sdbusplus::server::xyz::openbmc_project::state::Host>
 {
 public:
-    Host(std::shared_ptr<sdbusplus::asio::connection> conn, const std::string& node)
-        : ObjectServer(*conn, getPath(node).c_str(), Host::default_service, node), node_(node)
+    Host(std::shared_ptr<sdbusplus::asio::connection> conn, const std::string& node, SMBUSManager& smbus)
+        : ObjectServer(*conn, getPath(node).c_str(), Host::default_service, node), node_(node), smbus_(smbus)
     {
         determineInitialState();
 
@@ -166,16 +184,30 @@ public:
 
 private:
     const std::string node_;
-
+    SMBUSManager& smbus_;
 public:
     /// @brief Sets the requested host transition
     /// @param value - Can be one of Off, On, Reboot, GracefulWarmReboot, ForceWarmReboot
     /// @return - The updated requested host transition
     Transition requestedHostTransition(Transition value)
     {
-        
         // Noop hook: add logic here if needed
         info("Host{NODE}: Requested host transition from {OLD} to {NEW}", "NODE", node_, "OLD", sdbusplus::server::xyz::openbmc_project::state::Host::requestedHostTransition(), "NEW", value);
+        switch (value) {
+            case(Host::Transition::On) : {
+                smbus_.SmbusWriteByte(0x04, 0x00);
+                info("Awake Signal written");
+                break;
+            } case (Host::Transition::Off) : {
+                smbus_.SmbusWriteByte(0x04, 0x02);
+                info("Soft Signal written");
+                break;
+            } default : {
+                error("Unhandled Request");
+                break;
+            }
+        }
+        
         sdbusplus::server::xyz::openbmc_project::state::Host::requestedHostTransition(value);
         return value;
     }
@@ -199,6 +231,13 @@ public:
 
     HostState currentHostState() const
     {
+        uint8_t output;
+        int status = smbus_.SmbusSubaddressReadByte(0x00, &output);
+        if (status < 0) {
+            error("GET state failed: {STATUS}", "STATUS", status);
+        } else {
+            info("GET state: {STATE}", "STATE", output);
+        }
         return sdbusplus::server::xyz::openbmc_project::state::Host::currentHostState();
     }
 
@@ -237,7 +276,67 @@ public:
     }
 };
 
+int run_i2c_tests(SMBUSManager& sequence_mcu) {
+    uint8_t output;
+    int operation_status;
+
+    operation_status = sequence_mcu.SmbusSubaddressReadByte(0x00, &output);
+    if (operation_status < 0) {
+        return -1;
+    }
+    info("GET state: {STATE}", "STATE", output);
+    sleep(1);
+
+    operation_status = sequence_mcu.SmbusSubaddressReadByte(0x01, &output);
+    if (operation_status < 0) {
+        return -1;
+    }
+    info("GET_TRANSITION_CAUSE: {GET_TRANSITION_CAUSE}", "GET_TRANSITION_CAUSE", output);
+    sleep(1);
+    
+    operation_status = sequence_mcu.SmbusSubaddressReadByte(0x03, &output);
+    if (operation_status < 0) {
+        return -1;
+    }
+    info("GET_CAPABILITIES: {GET_CAPABILITIES}", "GET_CAPABILITIES", output);
+    sleep(1);
+
+    uint8_t buf[2];
+    size_t size_read;
+    operation_status = sequence_mcu.SmbusSubaddressReadByteBlock(0x02, 2, buf, &size_read);
+    if (operation_status == 0) {
+    info("BLOCK READ (subaddress 0x02): size_read={SIZE}, buf[0]={B0_DEC}, buf[1]={B1_DEC}",
+         "SIZE", size_read,
+         "B0_DEC", buf[0],
+         "B1_DEC", buf[1]);
+    } else {
+        error("BLOCK READ failed: {STATUS}", "STATUS", operation_status);
+    }
+
+    // ***********************************************************************
+
+    const uint8_t OPERATION_TESTS = 3; 
+    uint8_t operation_tests[OPERATION_TESTS] = { 0x00, 0x01, 0x03 };
+    uint8_t write_operation;
+    uint8_t subaddress = 0x04;
+
+    int write_status = 0;
+    for(int i = 0; i < OPERATION_TESTS; ++i) {
+        write_operation = operation_tests[i];
+        info("OPERATION: {WRITE_OPERATION}", "WRITE_OPERATION", write_operation);
+        write_status = sequence_mcu.SmbusWriteByte(subaddress, write_operation);
+        info("Write Status: {WRITE_STATUS}", "WRITE_STATUS", write_status);
+        sleep(5);
+    }
+
+    return 0;
+}
+
 int main(int argc, char* argv[]) {
+
+    SMBUSManager sequence_mcu("/dev/i2c-1", 0x40);
+    sequence_mcu.InitSMBUSManager();
+
     static std::string node = "0";
     if (argc > 1) {
         node = argv[1];
@@ -252,8 +351,8 @@ int main(int argc, char* argv[]) {
     auto conn = std::make_shared<sdbusplus::asio::connection>(io);
 
     Power power0(conn, node);
-    Chassis chassis0(conn, node);
-    Host host0(conn, node);
+    Chassis chassis0(conn, node, sequence_mcu);
+    Host host0(conn, node, sequence_mcu);
 
     io.run();
 }
