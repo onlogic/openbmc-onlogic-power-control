@@ -25,7 +25,7 @@ OperationStatus SequenceMCUHandler::IssueHardShutdown(){
     return OperationStatus::kOperationStatus_Success;
 }
 
-OperationStatus SequenceMCUHandler::GetPowerState(PowerEvent& current_power_state){
+OperationStatus SequenceMCUHandler::GetPowerState(PowerState& current_power_state){
 
     return OperationStatus::kOperationStatus_Success;
 }
@@ -35,12 +35,12 @@ OperationStatus SequenceMCUHandler::GetTransitionCause(TransitionCause& transiti
     return OperationStatus::kOperationStatus_Success;
 }
 
-OperationStatus SequenceMCUHandler::GetStateAndTransitionCause(std::pair<PowerEvent, TransitionCause>& gst_pair){
+OperationStatus SequenceMCUHandler::GetStateAndTransitionCause(std::pair<PowerState, TransitionCause>& gst_pair) {
 
     return OperationStatus::kOperationStatus_Success;
 }
 
-OperationStatus SequenceMCUHandler::GetCapability(PowerEvent& get_capability){
+OperationStatus SequenceMCUHandler::GetCapability(SMBUSCapability& get_capability){
 
     return OperationStatus::kOperationStatus_Success;
 }

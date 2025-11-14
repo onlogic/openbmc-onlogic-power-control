@@ -42,7 +42,6 @@
 #include <utility> // std::pair
 #include <phosphor-logging/lg2.hpp>
 
-
 #include "smbus_manager.hpp"
 PHOSPHOR_LOG2_USING;
 
@@ -71,26 +70,35 @@ enum class TransitionCause : uint8_t {
 
     kTransitionCause_BMCSetValidationError,      // <Proposed> Error Notification
     kTransitionCause_BMCSetEventError,           // <Proposed> Error Notification
+}; 
+
+enum class PowerState : uint8_t {
+  kSLP_S0                       = 0x00,
+  kSLP_S3                       = 0x03,
+  kSLP_S4                       = 0x04,
+  kSLP_S5                       = 0x05,
+  kSLP_LP                       = 0x06,
+  kSLP_Unknown                  = 0xFF,
 };
 
 enum class PowerEvent : uint8_t {
-    kPowerEvent_Awake          = 0x00,
-    kPowerEvent_HardReset      = 0x01,
-    kPowerEvent_SoftOff        = 0x02,
-    kPowerEvent_HardOff        = 0x03,
-    kPowerEvent_Unknown        = 0xFF,
+    kPowerEvent_Awake           = 0x00,
+    kPowerEvent_HardReset       = 0x01,
+    kPowerEvent_SoftOff         = 0x02,
+    kPowerEvent_HardOff         = 0x03,
+    kPowerEvent_Unknown         = 0xFF,
 };
 
 enum class OperationStatus : uint8_t {
-    kOperationStatus_Success   = 0x00,
-    kOperationStatus_Error     = 0x01,
-    kOperationStatus_Undefined = 0xFF,
+    kOperationStatus_Success    = 0x00,
+    kOperationStatus_Error      = 0x01,
+    kOperationStatus_Undefined  = 0xFF,
 };
 
 enum class SMBUSCapability : uint8_t {
   kSmbusCapabilities_Unisolated = 0,
   kSmbusCapabilities_Isolated   = 1,
-  kSmbusCapabilities_Unknown    = 0xFF
+  kSmbusCapabilities_Unknown    = 0xFF,
 };
 
 // Cache of important operational details
@@ -98,7 +106,7 @@ struct SequenceMcuContext {
     PowerEvent power_state_to_transmit;
     SMBUSCapability capabilities;
     TransitionCause last_known_transition_cause;
-    PowerEvent last_known_power_state;
+    PowerState last_known_power_state;
 };
 
 class SequenceMCUHandler {
@@ -118,10 +126,10 @@ class SequenceMCUHandler {
         OperationStatus IssueSoftShutdown();
         OperationStatus IssueHardShutdown();
 
-        OperationStatus GetPowerState(PowerEvent& current_power_state);
+        OperationStatus GetPowerState(PowerState& current_power_state);
         OperationStatus GetTransitionCause(TransitionCause& transition_cause);
-        OperationStatus GetStateAndTransitionCause(std::pair<PowerEvent, TransitionCause>& gst_pair);
-        OperationStatus GetCapability(PowerEvent& get_capability);
+        OperationStatus GetStateAndTransitionCause(std::pair<PowerState, TransitionCause>& gst_pair);
+        OperationStatus GetCapability(SMBUSCapability& get_capability);
 
 
     private:
@@ -133,7 +141,7 @@ class SequenceMCUHandler {
                 .power_state_to_transmit     = PowerEvent::kPowerEvent_Unknown,
                 .capabilities                = SMBUSCapability::kSmbusCapabilities_Unknown,
                 .last_known_transition_cause = TransitionCause::kTransitionCause_Unknown, 
-                .last_known_power_state      = PowerEvent::kPowerEvent_Unknown
+                .last_known_power_state      = PowerState::kSLP_Unknown
             };
 
             return init_return;

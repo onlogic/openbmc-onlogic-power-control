@@ -192,7 +192,11 @@ public:
     Transition requestedHostTransition(Transition value)
     {
         // Noop hook: add logic here if needed
-        info("Host{NODE}: Requested host transition from {OLD} to {NEW}", "NODE", node_, "OLD", sdbusplus::server::xyz::openbmc_project::state::Host::requestedHostTransition(), "NEW", value);
+        info("Host{NODE}: Requested host transition from {OLD} to {NEW}", 
+            "NODE", node_, "OLD", 
+             sdbusplus::server::xyz::openbmc_project::state::Host::requestedHostTransition(), 
+             "NEW", value);
+
         switch (value) {
             case(Host::Transition::On) : {
                 smbus_.SmbusWriteByte(0x04, 0x00);
