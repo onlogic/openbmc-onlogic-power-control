@@ -89,10 +89,10 @@ enum class PowerEvent : uint8_t {
     kPowerEvent_Unknown         = 0xFF,
 };
 
-enum class OperationStatus : uint8_t {
-    kOperationStatus_Success    = 0x00,
-    kOperationStatus_Error      = 0x01,
-    kOperationStatus_Undefined  = 0xFF,
+enum class SmbusOperationStatus : uint8_t {
+    kSmbusOperationStatus_Success    = 0x00,
+    kSmbusOperationStatus_Error      = 0x01,
+    kSmbusOperationStatus_Undefined  = 0xFF,
 };
 
 enum class SMBUSCapability : uint8_t {
@@ -120,16 +120,16 @@ class SequenceMCUHandler {
 
         // NOTE: May reduce to one issue transition function with parameter if 
         // not needed
-        OperationStatus IssueAwakeCmd();
-        OperationStatus IssueSoftReset();
-        OperationStatus IssueHardReset();
-        OperationStatus IssueSoftShutdown();
-        OperationStatus IssueHardShutdown();
+        SmbusOperationStatus IssueAwakeCmd();
+        SmbusOperationStatus IssueSoftReset();
+        SmbusOperationStatus IssueHardReset();
+        SmbusOperationStatus IssueSoftShutdown();
+        SmbusOperationStatus IssueHardShutdown();
 
-        OperationStatus GetPowerState(PowerState& current_power_state);
-        OperationStatus GetTransitionCause(TransitionCause& transition_cause);
-        OperationStatus GetStateAndTransitionCause(std::pair<PowerState, TransitionCause>& gst_pair);
-        OperationStatus GetCapability(SMBUSCapability& get_capability);
+        SmbusOperationStatus GetPowerState(PowerState& current_power_state);
+        SmbusOperationStatus GetTransitionCause(TransitionCause& transition_cause);
+        SmbusOperationStatus GetStateAndTransitionCause(std::pair<PowerState, TransitionCause>& gst_pair);
+        SmbusOperationStatus GetCapability(SMBUSCapability& get_capability);
 
 
     private:
