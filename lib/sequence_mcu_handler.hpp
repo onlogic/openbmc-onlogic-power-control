@@ -39,14 +39,18 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <utility> // std::pair
+#include <utility> // std::pair, std::to_underlying
+#include <xyz/openbmc_project/State/Host/common.hpp>
 #include <phosphor-logging/lg2.hpp>
+#include <unordered_map>
 
 #include "smbus_manager.hpp"
 PHOSPHOR_LOG2_USING;
 
 #define SMBUS_RX_BUFFER_SIZE   2
 #define STATE_CAUSE_SIZE       2
+
+using Host = sdbusplus::common::xyz::openbmc_project::state::Host;
 
 enum class TransitionCause : uint8_t {
     kTransitionCause_Unknown = 0x00,             // Unknown
@@ -72,34 +76,58 @@ enum class TransitionCause : uint8_t {
     kTransitionCause_BMCSetEventError,           // <Proposed> Error Notification
 }; 
 
+enum class CommandCode : uint8_t {
+    GetPowerstate                           = 0x00, // Subaddress for [W/R]
+    GetTransitionCause                      = 0x01, // Subaddress for [W/R]
+    GetPowerStateAndTransitionCause         = 0x02, // Subaddress for [W/R] (2 Byte types: [power_state_t, transition_cause_t])
+    GetCapabilities                         = 0x03, // Subaddress for [W/R]
+    SetPowerState                           = 0x04, // Command code for [W], ex. [SetPowerState, kPowerEvent]
+    UndefinedCode                           = 0xFF
+};
+
 enum class PowerState : uint8_t {
-  kSLP_S0                       = 0x00,
-  kSLP_S3                       = 0x03,
-  kSLP_S4                       = 0x04,
-  kSLP_S5                       = 0x05,
-  kSLP_LP                       = 0x06,
-  kSLP_Unknown                  = 0xFF,
+  kSLP_S0                                   = 0x00,
+  kSLP_S3                                   = 0x03,
+  kSLP_S4                                   = 0x04,
+  kSLP_S5                                   = 0x05,
+  kSLP_LP                                   = 0x06,
+  kSLP_Unknown                              = 0xFF,
+};
+
+std::unordered_map<Host::HostState, uint8_t> hostStateToNative = {
+    { Host::HostState::Running,  std::to_underlying(PowerState::kSLP_S0) },
+    { Host::HostState::Standby,  std::to_underlying(PowerState::kSLP_S3) },
+    { Host::HostState::Quiesced, std::to_underlying(PowerState::kSLP_S4) },
+    { Host::HostState::Off,      std::to_underlying(PowerState::kSLP_S5) },
+};
+
+std::unordered_map<uint8_t, Host::HostState> nativeToHostState = {
+    { std::to_underlying(PowerState::kSLP_S0), Host::HostState::Running  },
+    { std::to_underlying(PowerState::kSLP_S3), Host::HostState::Standby  },
+    { std::to_underlying(PowerState::kSLP_S4), Host::HostState::Quiesced },
+    { std::to_underlying(PowerState::kSLP_S5), Host::HostState::Off      },
 };
 
 enum class PowerEvent : uint8_t {
-    kPowerEvent_Awake           = 0x00,
-    kPowerEvent_HardReset       = 0x01,
-    kPowerEvent_SoftOff         = 0x02,
-    kPowerEvent_HardOff         = 0x03,
-    kPowerEvent_Unknown         = 0xFF,
+    kPowerEvent_Awake                      = 0x00,
+    kPowerEvent_HardReset                  = 0x01,
+    kPowerEvent_SoftOff                    = 0x02,
+    kPowerEvent_HardOff                    = 0x03,
+    kPowerEvent_Unknown                    = 0xFF,
 };
 
-enum class SmbusOperationStatus : uint8_t {
-    kSmbusOperationStatus_Success    = 0x00,
-    kSmbusOperationStatus_Error      = 0x01,
-    kSmbusOperationStatus_Undefined  = 0xFF,
+enum class SMBUSOperationStatus : uint8_t {
+    kSMBUSOperationStatus_Success          = 0x00,
+    kSMBUSOperationStatus_ProtocolError    = 0x01,
+    kSMBUSOperationStatus_InvalidCommand   = 0x02,
+    kSMBUSOperationStatus_Undefined        = 0xFF,
 };
 
 enum class SMBUSCapability : uint8_t {
-  kSmbusCapabilities_Unisolated = 0,
-  kSmbusCapabilities_Isolated   = 1,
-  kSmbusCapabilities_Unknown    = 0xFF,
-};
+  kSmbusCapabilities_Unisolated            = 0,
+  kSmbusCapabilities_Isolated              = 1,
+  kSmbusCapabilities_Unknown               = 0xFF,
+}; 
 
 // Cache of important operational details
 struct SequenceMcuContext {
@@ -120,16 +148,16 @@ class SequenceMCUHandler {
 
         // NOTE: May reduce to one issue transition function with parameter if 
         // not needed
-        SmbusOperationStatus IssueAwakeCmd();
-        SmbusOperationStatus IssueSoftReset();
-        SmbusOperationStatus IssueHardReset();
-        SmbusOperationStatus IssueSoftShutdown();
-        SmbusOperationStatus IssueHardShutdown();
+        SMBUSOperationStatus IssueAwakeCmd();
+        SMBUSOperationStatus IssueSoftReset();
+        SMBUSOperationStatus IssueHardReset();
+        SMBUSOperationStatus IssueSoftShutdown();
+        SMBUSOperationStatus IssueHardShutdown();
 
-        SmbusOperationStatus GetPowerState(PowerState& current_power_state);
-        SmbusOperationStatus GetTransitionCause(TransitionCause& transition_cause);
-        SmbusOperationStatus GetStateAndTransitionCause(std::pair<PowerState, TransitionCause>& gst_pair);
-        SmbusOperationStatus GetCapability(SMBUSCapability& get_capability);
+        SMBUSOperationStatus GetPowerState(Host::HostState& current_power_state);
+        SMBUSOperationStatus GetTransitionCause(TransitionCause& transition_cause);
+        SMBUSOperationStatus GetStateAndTransitionCause(std::pair<PowerState, TransitionCause>& gst_pair);
+        SMBUSOperationStatus GetCapability(SMBUSCapability& get_capability);
 
 
     private:

@@ -1,46 +1,61 @@
 #include "sequence_mcu_handler.hpp"
 
-SmbusOperationStatus SequenceMCUHandler::IssueAwakeCmd(){
+SMBUSOperationStatus SequenceMCUHandler::IssueAwakeCmd() {
 
-    return SmbusOperationStatus::kSmbusOperationStatus_Success;
+    return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
 }
 
-SmbusOperationStatus SequenceMCUHandler::IssueSoftReset(){
+SMBUSOperationStatus SequenceMCUHandler::IssueSoftReset() {
 
-    return SmbusOperationStatus::kSmbusOperationStatus_Success;
+    return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
 }
 
-SmbusOperationStatus SequenceMCUHandler::IssueHardReset(){
+SMBUSOperationStatus SequenceMCUHandler::IssueHardReset() {
 
-    return SmbusOperationStatus::kSmbusOperationStatus_Success;
+    return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
 }
 
-SmbusOperationStatus SequenceMCUHandler::IssueSoftShutdown(){
+SMBUSOperationStatus SequenceMCUHandler::IssueSoftShutdown() {
 
-    return SmbusOperationStatus::kSmbusOperationStatus_Success;
+    return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
 }
 
-SmbusOperationStatus SequenceMCUHandler::IssueHardShutdown(){
+SMBUSOperationStatus SequenceMCUHandler::IssueHardShutdown() {
 
-    return SmbusOperationStatus::kSmbusOperationStatus_Success;
+    return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
 }
 
-SmbusOperationStatus SequenceMCUHandler::GetPowerState(PowerState& current_power_state){
+SMBUSOperationStatus SequenceMCUHandler::GetPowerState(Host::HostState& current_power_state){
+    // primative smbus interface to get state
+    uint8_t output;
+    int operation_status;
+    operation_status = sequence_smbus_instance_.SmbusSubaddressReadByte(std::to_underlying(CommandCode::GetPowerstate), 
+                                                                        &output);
+    if (operation_status < 0) {
+        return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
+    }
 
-    return SmbusOperationStatus::kSmbusOperationStatus_Success;
+    // make sure resultant has host dbus-state equivalent
+    if (!nativeToHostState.contains(output)) {
+        return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidCommand;
+    }
+
+    // get our target in host-dbus compatable form
+    current_power_state = nativeToHostState[output];
+    return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
 }
 
-SmbusOperationStatus SequenceMCUHandler::GetTransitionCause(TransitionCause& transition_cause){
-
-    return SmbusOperationStatus::kSmbusOperationStatus_Success;
+SMBUSOperationStatus SequenceMCUHandler::GetTransitionCause(TransitionCause& transition_cause) {
+    
+    return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
 }
 
-SmbusOperationStatus SequenceMCUHandler::GetStateAndTransitionCause(std::pair<PowerState, TransitionCause>& gst_pair) {
+SMBUSOperationStatus SequenceMCUHandler::GetStateAndTransitionCause(std::pair<PowerState, TransitionCause>& gst_pair) {
 
-    return SmbusOperationStatus::kSmbusOperationStatus_Success;
+    return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
 }
 
-SmbusOperationStatus SequenceMCUHandler::GetCapability(SMBUSCapability& get_capability){
+SMBUSOperationStatus SequenceMCUHandler::GetCapability(SMBUSCapability& get_capability) {
 
-    return SmbusOperationStatus::kSmbusOperationStatus_Success;
+    return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
 }
