@@ -12,10 +12,8 @@ SMBUSManager::~SMBUSManager() {
 
 int SMBUSManager::InitSMBUSManager() {
     if (fd_ >= 0) {
-        errno = EPERM;
-        error("SMBUS_MANAGER :: Init failed: {ERROR_NO}. The FD is already in use.", 
-              "ERROR_NO", strerror(errno));
-        return fd_;
+        error("SMBUS_MANAGER :: The FD is already in use.");
+        return 0;
     }
 
     fd_ = open(i2c_device_.c_str(), O_RDWR);
