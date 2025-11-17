@@ -198,6 +198,7 @@ public:
              "NEW", value);
 
         switch (value) {
+            
             case(Host::Transition::On) : {
                 smbus_.SmbusWriteByte(0x04, 0x00);
                 info("Awake Signal written");
@@ -206,7 +207,13 @@ public:
                 smbus_.SmbusWriteByte(0x04, 0x02);
                 info("Soft Signal written");
                 break;
-            } default : {
+            } case(Host::Transition::GracefulWarmReboot) : {
+                // Trigger off
+                // Set something to know to turn back on
+                // if (GracefulWarmReboot && RealState == Off)
+                break;
+            }
+            default : {
                 error("Unhandled Request");
                 break;
             }

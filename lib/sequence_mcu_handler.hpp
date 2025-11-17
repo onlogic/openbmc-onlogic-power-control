@@ -48,7 +48,7 @@
 PHOSPHOR_LOG2_USING;
 
 #define SMBUS_RX_BUFFER_SIZE   2
-#define STATE_CAUSE_SIZE       2
+#define STATE_AND_TCAUSE_SIZE  2
 
 using Host = sdbusplus::common::xyz::openbmc_project::state::Host;
 
@@ -94,20 +94,6 @@ enum class PowerState : uint8_t {
   kSLP_Unknown                              = 0xFF,
 };
 
-std::unordered_map<Host::HostState, uint8_t> hostStateToNative = {
-    { Host::HostState::Running,  std::to_underlying(PowerState::kSLP_S0) },
-    { Host::HostState::Standby,  std::to_underlying(PowerState::kSLP_S3) },
-    { Host::HostState::Quiesced, std::to_underlying(PowerState::kSLP_S4) },
-    { Host::HostState::Off,      std::to_underlying(PowerState::kSLP_S5) },
-};
-
-std::unordered_map<uint8_t, Host::HostState> nativeToHostState = {
-    { std::to_underlying(PowerState::kSLP_S0), Host::HostState::Running  },
-    { std::to_underlying(PowerState::kSLP_S3), Host::HostState::Standby  },
-    { std::to_underlying(PowerState::kSLP_S4), Host::HostState::Quiesced },
-    { std::to_underlying(PowerState::kSLP_S5), Host::HostState::Off      },
-};
-
 enum class PowerEvent : uint8_t {
     kPowerEvent_Awake                      = 0x00,
     kPowerEvent_HardReset                  = 0x01,
@@ -128,6 +114,68 @@ enum class SMBUSCapability : uint8_t {
   kSmbusCapabilities_Isolated              = 1,
   kSmbusCapabilities_Unknown               = 0xFF,
 }; 
+
+
+const std::unordered_map<Host::HostState, uint8_t> hostStateToNative = {
+    { Host::HostState::Running,  std::to_underlying(PowerState::kSLP_S0) },
+    { Host::HostState::Standby,  std::to_underlying(PowerState::kSLP_S3) },
+    { Host::HostState::Quiesced, std::to_underlying(PowerState::kSLP_S4) },
+    { Host::HostState::Off,      std::to_underlying(PowerState::kSLP_S5) },
+};
+
+const std::unordered_map<uint8_t, Host::HostState> nativeToHostState = {
+    { std::to_underlying(PowerState::kSLP_S0), Host::HostState::Running  },
+    { std::to_underlying(PowerState::kSLP_S3), Host::HostState::Standby  },
+    { std::to_underlying(PowerState::kSLP_S4), Host::HostState::Quiesced },
+    { std::to_underlying(PowerState::kSLP_S5), Host::HostState::Off      },
+};
+
+const std::unordered_map<uint8_t, SMBUSCapability> validCapabilities = {
+    {std::to_underlying(SMBUSCapability::kSmbusCapabilities_Unisolated), SMBUSCapability::kSmbusCapabilities_Unisolated},
+    {std::to_underlying(SMBUSCapability::kSmbusCapabilities_Isolated),   SMBUSCapability::kSmbusCapabilities_Isolated},
+    {std::to_underlying(SMBUSCapability::kSmbusCapabilities_Unknown),    SMBUSCapability::kSmbusCapabilities_Unknown}
+};
+
+const std::unordered_map<uint8_t, Host::RestartCause> mapTransitionCauseIPMItoOBMC = {
+    // Unknown or generic
+    {std::to_underlying(TransitionCause::kTransitionCause_Unknown),               Host::RestartCause::Unknown},
+
+    // Remote/BMC commands
+    {std::to_underlying(TransitionCause::kTransitionCause_ChassisControl),         Host::RestartCause::RemoteCommand},
+    {std::to_underlying(TransitionCause::kTransitionCause_BMCVirtualPowerButtonPress), Host::RestartCause::RemoteCommand},
+    {std::to_underlying(TransitionCause::kTransitionCause_BMCVirtualResetPress),   Host::RestartCause::RemoteCommand},
+
+    // Physical buttons
+    {std::to_underlying(TransitionCause::kTransitionCause_ResetPushbutton),         Host::RestartCause::ResetButton},
+    {std::to_underlying(TransitionCause::kTransitionCause_PowerUpPushbutton),       Host::RestartCause::PowerButton},
+    {std::to_underlying(TransitionCause::kTransitionCause_IgnitionSoftOffTimer),    Host::RestartCause::PowerButton},
+    {std::to_underlying(TransitionCause::kTransitionCause_IgnitionHardOffTimer),    Host::RestartCause::PowerButton},
+    {std::to_underlying(TransitionCause::kTransitionCause_IgnitionLowVoltageTimer), Host::RestartCause::PowerButton},
+
+    // Watchdog
+    {std::to_underlying(TransitionCause::kTransitionCause_WatchdogExpiration),     Host::RestartCause::WatchdogTimer},
+
+    // Power policy
+    {std::to_underlying(TransitionCause::kTransitionCause_AcRestoreAlways),        Host::RestartCause::PowerPolicyAlwaysOn},
+    {std::to_underlying(TransitionCause::kTransitionCause_AcRestorePrevious),      Host::RestartCause::PowerPolicyPreviousState},
+
+    // Soft reset
+    {std::to_underlying(TransitionCause::kTransitionCause_SoftReset),              Host::RestartCause::SoftReset},
+
+    // Scheduled/RTC/Timer
+    {std::to_underlying(TransitionCause::kTransitionCause_PowerUpRtc),             Host::RestartCause::ScheduledPowerOn},
+    {std::to_underlying(TransitionCause::kTransitionCause_IgnitionStartupTimer),   Host::RestartCause::ScheduledPowerOn},
+
+    // Host crash
+    // Nothing yet
+
+    // OEM/Other
+    {std::to_underlying(TransitionCause::kTransitionCause_Oem),                     Host::RestartCause::Unknown},
+    {std::to_underlying(TransitionCause::kTransitionCause_ResetPef),                Host::RestartCause::Unknown},
+    {std::to_underlying(TransitionCause::kTransitionCause_PowerCyclePef),           Host::RestartCause::Unknown},
+    {std::to_underlying(TransitionCause::kTransitionCause_BMCSetValidationError),   Host::RestartCause::Unknown},
+    {std::to_underlying(TransitionCause::kTransitionCause_BMCSetEventError),        Host::RestartCause::Unknown}
+};
 
 // Cache of important operational details
 struct SequenceMcuContext {
@@ -155,10 +203,9 @@ class SequenceMCUHandler {
         SMBUSOperationStatus IssueHardShutdown();
 
         SMBUSOperationStatus GetPowerState(Host::HostState& current_power_state);
-        SMBUSOperationStatus GetTransitionCause(TransitionCause& transition_cause);
-        SMBUSOperationStatus GetStateAndTransitionCause(std::pair<PowerState, TransitionCause>& gst_pair);
+        SMBUSOperationStatus GetTransitionCause(Host::RestartCause& transition_cause);
+        SMBUSOperationStatus GetStateAndTransitionCause(std::pair<Host::HostState, Host::RestartCause>& gst_pair);
         SMBUSOperationStatus GetCapability(SMBUSCapability& get_capability);
-
 
     private:
         SMBUSManager sequence_smbus_instance_;
@@ -174,6 +221,10 @@ class SequenceMCUHandler {
 
             return init_return;
         };
+
+        // needed for retry events, how are supposed to know whether the operation succeeded?
+        // what are we supposed to retry until?
+        PowerEvent GetTargetState(PowerState current_power_state, PowerEvent requested_power_event);
     };
 
 #endif // SEQUENCE_MCU_HANDLER_HPP_
