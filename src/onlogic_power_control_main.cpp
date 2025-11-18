@@ -61,15 +61,15 @@ public:
 class Chassis : ObjectServer<sdbusplus::server::xyz::openbmc_project::state::Chassis>
 {
 public:
-    Chassis(std::shared_ptr<sdbusplus::asio::connection> conn, const std::string& node, SMBUSManager& smbus)
-        : ObjectServer(*conn, getPath(node).c_str(), Chassis::default_service, node), node(node), smbus_(smbus)
+    Chassis(std::shared_ptr<sdbusplus::asio::connection> conn, const std::string& node, SequenceMCUHandler& seq_mcu_comm_handler)
+        : ObjectServer(*conn, getPath(node).c_str(), Chassis::default_service, node), node(node), seq_mcu_comm_handler_(seq_mcu_comm_handler)
     {
         determineInitialState();
     };
 
 private:
     const std::string node;
-    SMBUSManager& smbus_;
+    SequenceMCUHandler& seq_mcu_comm_handler_;
 
 public:
 
@@ -81,11 +81,13 @@ public:
         // info("Chassis{NODE}: Requested power transition from {OLD} to {NEW}", "NODE", node, "OLD", sdbusplus::server::xyz::openbmc_project::state::Chassis::requestedPowerTransition(), "NEW", value);
         switch (value) {
             case(Chassis::Transition::On) : {
-                smbus_.SmbusWriteByte(0x04, 0x00);
+                // smbus_.SmbusWriteByte(0x04, 0x00);
+                seq_mcu_comm_handler_.IssueAwakeCmd();
                 info("Awake Signal written");
                 break;
             } case (Chassis::Transition::Off) : {
-                smbus_.SmbusWriteByte(0x04, 0x03);
+                // smbus_.SmbusWriteByte(0x04, 0x03);
+                seq_mcu_comm_handler_.IssueHardShutdown();
                 info("Hard Off Signal written");
                 break;
             } default : {
@@ -173,8 +175,8 @@ public:
 class Host : ObjectServer<sdbusplus::server::xyz::openbmc_project::state::Host>
 {
 public:
-    Host(std::shared_ptr<sdbusplus::asio::connection> conn, const std::string& node, SMBUSManager& smbus)
-        : ObjectServer(*conn, getPath(node).c_str(), Host::default_service, node), node_(node), smbus_(smbus)
+    Host(std::shared_ptr<sdbusplus::asio::connection> conn, const std::string& node, SequenceMCUHandler& seq_mcu_comm_handler)
+        : ObjectServer(*conn, getPath(node).c_str(), Host::default_service, node), node_(node), seq_mcu_comm_handler_(seq_mcu_comm_handler)
     {
         determineInitialState();
 
@@ -185,7 +187,7 @@ public:
 
 private:
     const std::string node_;
-    SMBUSManager& smbus_;
+    SequenceMCUHandler& seq_mcu_comm_handler_;
 public:
     /// @brief Sets the requested host transition
     /// @param value - Can be one of Off, On, Reboot, GracefulWarmReboot, ForceWarmReboot
@@ -199,21 +201,25 @@ public:
              "NEW", value);
 
         switch (value) {
-            
             case(Host::Transition::On) : {
-                smbus_.SmbusWriteByte(0x04, 0x00);
+                // smbus_.SmbusWriteByte(0x04, 0x00);
+                seq_mcu_comm_handler_.IssueAwakeCmd();
                 info("Awake Signal written");
                 break;
             } case (Host::Transition::Off) : {
-                smbus_.SmbusWriteByte(0x04, 0x02);
-                info("Soft Signal written");
+                // smbus_.SmbusWriteByte(0x04, 0x02);
+                seq_mcu_comm_handler_.IssueSoftShutdown();
+                info("Soft Shutdown Signal written");
                 break;
-            } case(Host::Transition::GracefulWarmReboot) : {
-                // Trigger off
-                // Set something to know to turn back on
-                // if (GracefulWarmReboot && RealState == Off)
+            } case(Host::Transition::Reboot) :
+              case(Host::Transition::GracefulWarmReboot) :
+                info("Soft Reset Signal Written");
+                seq_mcu_comm_handler_.IssueSoftReset();
                 break;
-            }
+            case(Host::Transition::ForceWarmReboot) : 
+                info("Hard Reset Signal Written");
+                seq_mcu_comm_handler_.IssueHardReset();
+                break;
             default : {
                 error("Unhandled Request");
                 break;
@@ -243,14 +249,15 @@ public:
 
     HostState currentHostState() const
     {
-        uint8_t output;
-        int status = smbus_.SmbusSubaddressReadByte(0x00, &output);
-        if (status < 0) {
-            error("GET state failed: {STATUS}", "STATUS", status);
+        sdbusplus::common::xyz::openbmc_project::state::Host::HostState host_state;
+        auto status = seq_mcu_comm_handler_.GetPowerState(host_state);
+        if (status != SMBUSOperationStatus::kSMBUSOperationStatus_Success) {
+            error("GET state failed: {STATUS}", "STATUS", std::to_underlying(status));
+            return HostState::Off; // there are no better placeholders
         } else {
-            info("GET state: {STATE}", "STATE", output);
+            info("GET state: {STATE}", "STATE", std::to_underlying(host_state));
         }
-        return sdbusplus::server::xyz::openbmc_project::state::Host::currentHostState();
+        return host_state;
     }
 
     RestartCause restartCause(RestartCause value)
@@ -289,27 +296,27 @@ public:
 };
 
 int run_i2c_tests() {
-    SMBUSManager sequence_mcu("/dev/i2c-1", 0x40);
-    sequence_mcu.InitSMBUSManager();
+    SMBUSManager smbus("/dev/i2c-1", 0x40);
+    smbus.InitSMBUSManager();
 
     uint8_t output;
     int operation_status;
 
-    operation_status = sequence_mcu.SmbusSubaddressReadByte(0x00, &output);
+    operation_status = smbus.SmbusSubaddressReadByte(0x00, &output);
     if (operation_status < 0) {
         return -1;
     }
     info("GET state: {STATE}", "STATE", output);
     sleep(1);
 
-    operation_status = sequence_mcu.SmbusSubaddressReadByte(0x01, &output);
+    operation_status = smbus.SmbusSubaddressReadByte(0x01, &output);
     if (operation_status < 0) {
         return -1;
     }
     info("GET_TRANSITION_CAUSE: {GET_TRANSITION_CAUSE}", "GET_TRANSITION_CAUSE", output);
     sleep(1);
     
-    operation_status = sequence_mcu.SmbusSubaddressReadByte(0x03, &output);
+    operation_status = smbus.SmbusSubaddressReadByte(0x03, &output);
     if (operation_status < 0) {
         return -1;
     }
@@ -318,7 +325,7 @@ int run_i2c_tests() {
 
     uint8_t buf[2];
     size_t size_read;
-    operation_status = sequence_mcu.SmbusSubaddressReadByteBlock(0x02, 2, buf, &size_read);
+    operation_status = smbus.SmbusSubaddressReadByteBlock(0x02, 2, buf, &size_read);
     if (operation_status == 0) {
     info("BLOCK READ (subaddress 0x02): size_read={SIZE}, buf[0]={B0_DEC}, buf[1]={B1_DEC}",
          "SIZE", size_read,
@@ -339,7 +346,7 @@ int run_i2c_tests() {
     for(int i = 0; i < OPERATION_TESTS; ++i) {
         write_operation = operation_tests[i];
         info("OPERATION: {WRITE_OPERATION}", "WRITE_OPERATION", write_operation);
-        write_status = sequence_mcu.SmbusWriteByte(subaddress, write_operation);
+        write_status = smbus.SmbusWriteByte(subaddress, write_operation);
         info("Write Status: {WRITE_STATUS}", "WRITE_STATUS", write_status);
         sleep(5);
     }
@@ -414,10 +421,6 @@ void run_handler_tests() {
 }
 
 int main(int argc, char* argv[]) {
-/*
-    SMBUSManager sequence_mcu("/dev/i2c-1", 0x40);
-    sequence_mcu.InitSMBUSManager();
-
     static std::string node = "0";
     if (argc > 1) {
         node = argv[1];
@@ -428,14 +431,19 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
+    SMBUSManager smbus_manager("/dev/i2c-1", 
+                               std::to_underlying(SlaveAddressTable::kSlaveAddress_SequenceMCU));
+
+    smbus_manager.InitSMBUSManager();
+
+    SequenceMCUHandler seq_mcu_comm_handler(smbus_manager);
+
     boost::asio::io_context io;
     auto conn = std::make_shared<sdbusplus::asio::connection>(io);
 
     Power power0(conn, node);
-    Chassis chassis0(conn, node, sequence_mcu);
-    Host host0(conn, node, sequence_mcu);
+    Chassis chassis0(conn, node, seq_mcu_comm_handler);
+    Host host0(conn, node, seq_mcu_comm_handler);
 
     io.run();
-*/
-    run_handler_tests();
 }

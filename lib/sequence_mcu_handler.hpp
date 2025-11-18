@@ -45,7 +45,6 @@
 #include <unordered_map>
 
 #include "smbus_manager.hpp"
-#include "sequence_mcu_handler.hpp"
 PHOSPHOR_LOG2_USING;
 
 #define SMBUS_RX_BUFFER_SIZE   2
@@ -112,14 +111,6 @@ enum class SMBUSCapability : uint8_t {
   kSmbusCapabilities_Unisolated            = 0,
   kSmbusCapabilities_Isolated              = 1,
   kSmbusCapabilities_Unknown               = 0xFF,
-}; 
-
-// Cache of important operational details
-struct SequenceMcuContext {
-    PowerEvent power_state_to_transmit;
-    SMBUSCapability capabilities;
-    TransitionCause last_known_transition_cause;
-    PowerState last_known_power_state;
 };
 
 class SequenceMCUHandler {
@@ -152,16 +143,24 @@ class SequenceMCUHandler {
         static const std::unordered_map<uint8_t, SMBUSCapability> validCapabilities;
         static const std::unordered_map<uint8_t, Host::RestartCause> mapTransitionCauseIPMItoOBMC;
 
+        // Cache of important operational details
+        struct SequenceMcuContext {
+            Host::HostState power_state_to_transmit;
+            SMBUSCapability capabilities;
+            Host::RestartCause last_known_transition_cause;
+            Host::HostState last_known_power_state;
+        };
+
     private:
         SMBUSManager& sequence_smbus_instance_;
         SequenceMcuContext seq_mcu_ctx_;
 
         inline SequenceMcuContext InitSequenceMcuContext(void) {
             SequenceMcuContext init_return = {
-                .power_state_to_transmit     = PowerEvent::kPowerEvent_Unknown,
+                .power_state_to_transmit     = Host::HostState::Off,
                 .capabilities                = SMBUSCapability::kSmbusCapabilities_Unknown,
-                .last_known_transition_cause = TransitionCause::kTransitionCause_Unknown, 
-                .last_known_power_state      = PowerState::kSLP_Unknown
+                .last_known_transition_cause = Host::RestartCause::Unknown,
+                .last_known_power_state      = Host::HostState::Off
             };
 
             return init_return;
