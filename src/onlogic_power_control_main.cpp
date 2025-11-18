@@ -287,7 +287,10 @@ public:
     }
 };
 
-int run_i2c_tests(SMBUSManager& sequence_mcu) {
+int run_i2c_tests() {
+    SMBUSManager sequence_mcu("/dev/i2c-1", 0x40);
+    sequence_mcu.InitSMBUSManager();
+
     uint8_t output;
     int operation_status;
 
@@ -343,8 +346,67 @@ int run_i2c_tests(SMBUSManager& sequence_mcu) {
     return 0;
 }
 
-int main(int argc, char* argv[]) {
+void run_handler_tests() {
+    SMBUSManager smbus_manager("/dev/i2c-1", 0x40);
+    smbus_manager.InitSMBUSManager();
 
+    SequenceMCUHandler handler(smbus_manager);
+
+    // --- GET COMMANDS FIRST ---
+    Host::HostState host_state;
+    Host::RestartCause restart_cause;
+    std::pair<Host::HostState, Host::RestartCause> state_and_cause;
+    SMBUSCapability capability;
+
+    auto status = handler.GetPowerState(host_state);
+    info("GetPowerState: {STATUS}, state: {STATE}",
+         "STATUS", std::to_underlying(status),
+         "STATE", std::to_underlying(host_state));
+    sleep(1);
+
+    status = handler.GetTransitionCause(restart_cause);
+    info("GetTransitionCause: {STATUS}, cause: {CAUSE}",
+         "STATUS", std::to_underlying(status),
+         "CAUSE", std::to_underlying(restart_cause));
+    sleep(1);
+
+    status = handler.GetStateAndTransitionCause(state_and_cause);
+    info("GetStateAndTransitionCause: {STATUS}, state: {STATE}, cause: {CAUSE}",
+         "STATUS", std::to_underlying(status),
+         "STATE", std::to_underlying(state_and_cause.first),
+         "CAUSE", std::to_underlying(state_and_cause.second));
+    sleep(1);
+
+    status = handler.GetCapability(capability);
+    info("GetCapability: {STATUS}, capability: {CAP}",
+         "STATUS", std::to_underlying(status),
+         "CAP", std::to_underlying(capability));
+    sleep(1);
+
+    // --- SET COMMANDS LAST ---
+    status = handler.IssueAwakeCmd();
+    info("IssueAwakeCmd: {STATUS}", "STATUS", std::to_underlying(status));
+    sleep(5);
+
+    status = handler.IssueSoftReset();
+    info("IssueSoftReset: {STATUS}", "STATUS", std::to_underlying(status));
+    sleep(5);
+
+    status = handler.IssueHardReset();
+    info("IssueHardReset: {STATUS}", "STATUS", std::to_underlying(status));
+    sleep(5);
+
+    status = handler.IssueSoftShutdown();
+    info("IssueSoftShutdown: {STATUS}", "STATUS", std::to_underlying(status));
+    sleep(5);
+
+    status = handler.IssueHardShutdown();
+    info("IssueHardShutdown: {STATUS}", "STATUS", std::to_underlying(status));
+    sleep(5);
+}
+
+int main(int argc, char* argv[]) {
+/*
     SMBUSManager sequence_mcu("/dev/i2c-1", 0x40);
     sequence_mcu.InitSMBUSManager();
 
@@ -366,4 +428,6 @@ int main(int argc, char* argv[]) {
     Host host0(conn, node, sequence_mcu);
 
     io.run();
+*/
+    run_handler_tests()
 }
