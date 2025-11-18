@@ -432,8 +432,8 @@ int main(int argc, char* argv[]) {
     }
 
     SMBUSManager smbus_manager("/dev/i2c-1", 
-                               std::to_underlying(SlaveAddressTable::kSlaveAddress_SequenceMCU));
-
+        std::to_underlying(SlaveAddressTable::kSlaveAddress_SequenceMCU));
+    
     smbus_manager.InitSMBUSManager();
 
     SequenceMCUHandler seq_mcu_comm_handler(smbus_manager);
