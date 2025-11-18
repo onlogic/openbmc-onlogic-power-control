@@ -127,7 +127,7 @@ class SequenceMCUHandler {
         using Host = sdbusplus::common::xyz::openbmc_project::state::Host;
 
         // https://google.github.io/styleguide/cppguide.html#Implicit_Conversions
-        explicit SequenceMCUHandler(SMBUSManager smbus_init) :
+        explicit SequenceMCUHandler(SMBUSManager& smbus_init) :
             sequence_smbus_instance_(smbus_init),
             seq_mcu_ctx_(InitSequenceMcuContext()) {}
 
@@ -153,7 +153,7 @@ class SequenceMCUHandler {
         static const std::unordered_map<uint8_t, Host::RestartCause> mapTransitionCauseIPMItoOBMC;
 
     private:
-        SMBUSManager sequence_smbus_instance_;
+        SMBUSManager& sequence_smbus_instance_;
         SequenceMcuContext seq_mcu_ctx_;
 
         inline SequenceMcuContext InitSequenceMcuContext(void) {

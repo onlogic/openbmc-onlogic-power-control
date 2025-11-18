@@ -39,19 +39,19 @@ const std::unordered_map<uint8_t, Host::RestartCause> SequenceMCUHandler::mapTra
     {std::to_underlying(TransitionCause::kTransitionCause_IgnitionLowVoltageTimer), Host::RestartCause::PowerButton},
 
     // Watchdog
-    {std::to_underlying(TransitionCause::kTransitionCause_WatchdogExpiration),     Host::RestartCause::WatchdogTimer},
+    {std::to_underlying(TransitionCause::kTransitionCause_WatchdogExpiration),      Host::RestartCause::WatchdogTimer},
 
     // Power policy
-    {std::to_underlying(TransitionCause::kTransitionCause_AcRestoreAlways),        Host::RestartCause::PowerPolicyAlwaysOn},
-    {std::to_underlying(TransitionCause::kTransitionCause_AcRestorePrevious),      Host::RestartCause::PowerPolicyPreviousState},
+    {std::to_underlying(TransitionCause::kTransitionCause_AcRestoreAlways),         Host::RestartCause::PowerPolicyAlwaysOn},
+    {std::to_underlying(TransitionCause::kTransitionCause_AcRestorePrevious),       Host::RestartCause::PowerPolicyPreviousState},
 
     // Soft reset
-    {std::to_underlying(TransitionCause::kTransitionCause_SoftReset),              Host::RestartCause::SoftReset},
+    {std::to_underlying(TransitionCause::kTransitionCause_SoftReset),               Host::RestartCause::SoftReset},
 
     // Scheduled/RTC/Timer
-    {std::to_underlying(TransitionCause::kTransitionCause_PowerUpRtc),             Host::RestartCause::ScheduledPowerOn},
-    {std::to_underlying(TransitionCause::kTransitionCause_IgnitionStartupTimer),   Host::RestartCause::ScheduledPowerOn},
-
+    {std::to_underlying(TransitionCause::kTransitionCause_PowerUpRtc),              Host::RestartCause::ScheduledPowerOn},
+    {std::to_underlying(TransitionCause::kTransitionCause_IgnitionStartupTimer),    Host::RestartCause::ScheduledPowerOn},
+ 
     // Host crash
     // Nothing yet
 
