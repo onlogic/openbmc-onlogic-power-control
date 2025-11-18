@@ -1,5 +1,68 @@
 #include "sequence_mcu_handler.hpp"
 
+using Host = SequenceMCUHandler::Host;
+
+const std::unordered_map<Host::HostState, uint8_t> SequenceMCUHandler::hostStateToNative = {
+    { Host::HostState::Running,  std::to_underlying(PowerState::kSLP_S0) },
+    { Host::HostState::Standby,  std::to_underlying(PowerState::kSLP_S3) },
+    { Host::HostState::Quiesced, std::to_underlying(PowerState::kSLP_S4) },
+    { Host::HostState::Off,      std::to_underlying(PowerState::kSLP_S5) },
+};
+
+const std::unordered_map<uint8_t, Host::HostState> SequenceMCUHandler::nativeToHostState = {
+    { std::to_underlying(PowerState::kSLP_S0), Host::HostState::Running  },
+    { std::to_underlying(PowerState::kSLP_S3), Host::HostState::Standby  },
+    { std::to_underlying(PowerState::kSLP_S4), Host::HostState::Quiesced },
+    { std::to_underlying(PowerState::kSLP_S5), Host::HostState::Off      },
+};
+
+const std::unordered_map<uint8_t, SMBUSCapability> SequenceMCUHandler::validCapabilities = {
+    {std::to_underlying(SMBUSCapability::kSmbusCapabilities_Unisolated), SMBUSCapability::kSmbusCapabilities_Unisolated},
+    {std::to_underlying(SMBUSCapability::kSmbusCapabilities_Isolated),   SMBUSCapability::kSmbusCapabilities_Isolated},
+    {std::to_underlying(SMBUSCapability::kSmbusCapabilities_Unknown),    SMBUSCapability::kSmbusCapabilities_Unknown}
+};
+
+const std::unordered_map<uint8_t, Host::RestartCause> SequenceMCUHandler::mapTransitionCauseIPMItoOBMC = {
+    // Unknown or generic
+    {std::to_underlying(TransitionCause::kTransitionCause_Unknown),               Host::RestartCause::Unknown},
+
+    // Remote/BMC commands
+    {std::to_underlying(TransitionCause::kTransitionCause_ChassisControl),         Host::RestartCause::RemoteCommand},
+    {std::to_underlying(TransitionCause::kTransitionCause_BMCVirtualPowerButtonPress), Host::RestartCause::RemoteCommand},
+    {std::to_underlying(TransitionCause::kTransitionCause_BMCVirtualResetPress),   Host::RestartCause::RemoteCommand},
+
+    // Physical buttons
+    {std::to_underlying(TransitionCause::kTransitionCause_ResetPushbutton),         Host::RestartCause::ResetButton},
+    {std::to_underlying(TransitionCause::kTransitionCause_PowerUpPushbutton),       Host::RestartCause::PowerButton},
+    {std::to_underlying(TransitionCause::kTransitionCause_IgnitionSoftOffTimer),    Host::RestartCause::PowerButton},
+    {std::to_underlying(TransitionCause::kTransitionCause_IgnitionHardOffTimer),    Host::RestartCause::PowerButton},
+    {std::to_underlying(TransitionCause::kTransitionCause_IgnitionLowVoltageTimer), Host::RestartCause::PowerButton},
+
+    // Watchdog
+    {std::to_underlying(TransitionCause::kTransitionCause_WatchdogExpiration),     Host::RestartCause::WatchdogTimer},
+
+    // Power policy
+    {std::to_underlying(TransitionCause::kTransitionCause_AcRestoreAlways),        Host::RestartCause::PowerPolicyAlwaysOn},
+    {std::to_underlying(TransitionCause::kTransitionCause_AcRestorePrevious),      Host::RestartCause::PowerPolicyPreviousState},
+
+    // Soft reset
+    {std::to_underlying(TransitionCause::kTransitionCause_SoftReset),              Host::RestartCause::SoftReset},
+
+    // Scheduled/RTC/Timer
+    {std::to_underlying(TransitionCause::kTransitionCause_PowerUpRtc),             Host::RestartCause::ScheduledPowerOn},
+    {std::to_underlying(TransitionCause::kTransitionCause_IgnitionStartupTimer),   Host::RestartCause::ScheduledPowerOn},
+
+    // Host crash
+    // Nothing yet
+
+    // OEM/Other
+    {std::to_underlying(TransitionCause::kTransitionCause_Oem),                     Host::RestartCause::Unknown},
+    {std::to_underlying(TransitionCause::kTransitionCause_ResetPef),                Host::RestartCause::Unknown},
+    {std::to_underlying(TransitionCause::kTransitionCause_PowerCyclePef),           Host::RestartCause::Unknown},
+    {std::to_underlying(TransitionCause::kTransitionCause_BMCSetValidationError),   Host::RestartCause::Unknown},
+    {std::to_underlying(TransitionCause::kTransitionCause_BMCSetEventError),        Host::RestartCause::Unknown}
+};
+
 SMBUSOperationStatus SequenceMCUHandler::IssueAwakeCmd() {
     // primative smbus interface to issue Hard Reset command
     int operation_status;
@@ -139,7 +202,7 @@ SMBUSOperationStatus SequenceMCUHandler::GetCapability(SMBUSCapability& get_capa
     uint8_t output;
     int operation_status;
     operation_status = sequence_smbus_instance_.SmbusSubaddressReadByte(
-        std::to_underlying(CommandCode::GetTransitionCause), &output);
+        std::to_underlying(CommandCode::GetCapabilities), &output);
     if (operation_status < 0) {
         return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
     }

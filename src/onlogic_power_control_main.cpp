@@ -13,6 +13,7 @@
 #include <xyz/openbmc_project/Common/error.hpp>         // Generated from subprojects/phosphor-dbus-interfaces not sure the exact yaml file
 
 #include "smbus_manager.hpp"
+#include "sequence_mcu_handler.hpp"
 
 PHOSPHOR_LOG2_USING;
 
@@ -353,21 +354,24 @@ void run_handler_tests() {
     SequenceMCUHandler handler(smbus_manager);
 
     // --- GET COMMANDS FIRST ---
-    Host::HostState host_state;
+    sdbusplus::common::xyz::openbmc_project::state::Host::HostState host_state;
     auto status = handler.GetPowerState(host_state);
     info("GetPowerState: {STATUS}, state: {STATE}",
          "STATUS", std::to_underlying(status),
          "STATE", std::to_underlying(host_state));
     sleep(1);
 
-    Host::RestartCause restart_cause;
+    sdbusplus::common::xyz::openbmc_project::state::Host::RestartCause restart_cause;
     status = handler.GetTransitionCause(restart_cause);
     info("GetTransitionCause: {STATUS}, cause: {CAUSE}",
          "STATUS", std::to_underlying(status),
          "CAUSE", std::to_underlying(restart_cause));
     sleep(1);
 
-    std::pair<Host::HostState, Host::RestartCause> state_and_cause;
+    std::pair<
+        sdbusplus::common::xyz::openbmc_project::state::Host::HostState,
+        sdbusplus::common::xyz::openbmc_project::state::Host::RestartCause
+    > state_and_cause;
     status = handler.GetStateAndTransitionCause(state_and_cause);
     info("GetStateAndTransitionCause: {STATUS}, state: {STATE}, cause: {CAUSE}",
          "STATUS", std::to_underlying(status),
@@ -387,6 +391,7 @@ void run_handler_tests() {
     info("IssueAwakeCmd: {STATUS}", "STATUS", std::to_underlying(status));
     sleep(5);
 
+    // hold off on this for now
     // status = handler.IssueSoftReset();
     // info("IssueSoftReset: {STATUS}", "STATUS", std::to_underlying(status));
     // sleep(5);

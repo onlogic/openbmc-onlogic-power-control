@@ -45,12 +45,11 @@
 #include <unordered_map>
 
 #include "smbus_manager.hpp"
+#include "sequence_mcu_handler.hpp"
 PHOSPHOR_LOG2_USING;
 
 #define SMBUS_RX_BUFFER_SIZE   2
 #define STATE_AND_TCAUSE_SIZE  2
-
-using Host = sdbusplus::common::xyz::openbmc_project::state::Host;
 
 enum class TransitionCause : uint8_t {
     kTransitionCause_Unknown = 0x00,             // Unknown
@@ -115,68 +114,6 @@ enum class SMBUSCapability : uint8_t {
   kSmbusCapabilities_Unknown               = 0xFF,
 }; 
 
-
-const std::unordered_map<Host::HostState, uint8_t> hostStateToNative = {
-    { Host::HostState::Running,  std::to_underlying(PowerState::kSLP_S0) },
-    { Host::HostState::Standby,  std::to_underlying(PowerState::kSLP_S3) },
-    { Host::HostState::Quiesced, std::to_underlying(PowerState::kSLP_S4) },
-    { Host::HostState::Off,      std::to_underlying(PowerState::kSLP_S5) },
-};
-
-const std::unordered_map<uint8_t, Host::HostState> nativeToHostState = {
-    { std::to_underlying(PowerState::kSLP_S0), Host::HostState::Running  },
-    { std::to_underlying(PowerState::kSLP_S3), Host::HostState::Standby  },
-    { std::to_underlying(PowerState::kSLP_S4), Host::HostState::Quiesced },
-    { std::to_underlying(PowerState::kSLP_S5), Host::HostState::Off      },
-};
-
-const std::unordered_map<uint8_t, SMBUSCapability> validCapabilities = {
-    {std::to_underlying(SMBUSCapability::kSmbusCapabilities_Unisolated), SMBUSCapability::kSmbusCapabilities_Unisolated},
-    {std::to_underlying(SMBUSCapability::kSmbusCapabilities_Isolated),   SMBUSCapability::kSmbusCapabilities_Isolated},
-    {std::to_underlying(SMBUSCapability::kSmbusCapabilities_Unknown),    SMBUSCapability::kSmbusCapabilities_Unknown}
-};
-
-const std::unordered_map<uint8_t, Host::RestartCause> mapTransitionCauseIPMItoOBMC = {
-    // Unknown or generic
-    {std::to_underlying(TransitionCause::kTransitionCause_Unknown),               Host::RestartCause::Unknown},
-
-    // Remote/BMC commands
-    {std::to_underlying(TransitionCause::kTransitionCause_ChassisControl),         Host::RestartCause::RemoteCommand},
-    {std::to_underlying(TransitionCause::kTransitionCause_BMCVirtualPowerButtonPress), Host::RestartCause::RemoteCommand},
-    {std::to_underlying(TransitionCause::kTransitionCause_BMCVirtualResetPress),   Host::RestartCause::RemoteCommand},
-
-    // Physical buttons
-    {std::to_underlying(TransitionCause::kTransitionCause_ResetPushbutton),         Host::RestartCause::ResetButton},
-    {std::to_underlying(TransitionCause::kTransitionCause_PowerUpPushbutton),       Host::RestartCause::PowerButton},
-    {std::to_underlying(TransitionCause::kTransitionCause_IgnitionSoftOffTimer),    Host::RestartCause::PowerButton},
-    {std::to_underlying(TransitionCause::kTransitionCause_IgnitionHardOffTimer),    Host::RestartCause::PowerButton},
-    {std::to_underlying(TransitionCause::kTransitionCause_IgnitionLowVoltageTimer), Host::RestartCause::PowerButton},
-
-    // Watchdog
-    {std::to_underlying(TransitionCause::kTransitionCause_WatchdogExpiration),     Host::RestartCause::WatchdogTimer},
-
-    // Power policy
-    {std::to_underlying(TransitionCause::kTransitionCause_AcRestoreAlways),        Host::RestartCause::PowerPolicyAlwaysOn},
-    {std::to_underlying(TransitionCause::kTransitionCause_AcRestorePrevious),      Host::RestartCause::PowerPolicyPreviousState},
-
-    // Soft reset
-    {std::to_underlying(TransitionCause::kTransitionCause_SoftReset),              Host::RestartCause::SoftReset},
-
-    // Scheduled/RTC/Timer
-    {std::to_underlying(TransitionCause::kTransitionCause_PowerUpRtc),             Host::RestartCause::ScheduledPowerOn},
-    {std::to_underlying(TransitionCause::kTransitionCause_IgnitionStartupTimer),   Host::RestartCause::ScheduledPowerOn},
-
-    // Host crash
-    // Nothing yet
-
-    // OEM/Other
-    {std::to_underlying(TransitionCause::kTransitionCause_Oem),                     Host::RestartCause::Unknown},
-    {std::to_underlying(TransitionCause::kTransitionCause_ResetPef),                Host::RestartCause::Unknown},
-    {std::to_underlying(TransitionCause::kTransitionCause_PowerCyclePef),           Host::RestartCause::Unknown},
-    {std::to_underlying(TransitionCause::kTransitionCause_BMCSetValidationError),   Host::RestartCause::Unknown},
-    {std::to_underlying(TransitionCause::kTransitionCause_BMCSetEventError),        Host::RestartCause::Unknown}
-};
-
 // Cache of important operational details
 struct SequenceMcuContext {
     PowerEvent power_state_to_transmit;
@@ -187,6 +124,8 @@ struct SequenceMcuContext {
 
 class SequenceMCUHandler {
     public:
+        using Host = sdbusplus::common::xyz::openbmc_project::state::Host;
+
         // https://google.github.io/styleguide/cppguide.html#Implicit_Conversions
         explicit SequenceMCUHandler(SMBUSManager smbus_init) :
             sequence_smbus_instance_(smbus_init),
@@ -206,6 +145,12 @@ class SequenceMCUHandler {
         SMBUSOperationStatus GetTransitionCause(Host::RestartCause& transition_cause);
         SMBUSOperationStatus GetStateAndTransitionCause(std::pair<Host::HostState, Host::RestartCause>& gst_pair);
         SMBUSOperationStatus GetCapability(SMBUSCapability& get_capability);
+
+        // make public just in case, static for one instance overall regardless of num
+        static const std::unordered_map<Host::HostState, uint8_t> hostStateToNative;
+        static const std::unordered_map<uint8_t, Host::HostState> nativeToHostState;
+        static const std::unordered_map<uint8_t, SMBUSCapability> validCapabilities;
+        static const std::unordered_map<uint8_t, Host::RestartCause> mapTransitionCauseIPMItoOBMC;
 
     private:
         SMBUSManager sequence_smbus_instance_;
