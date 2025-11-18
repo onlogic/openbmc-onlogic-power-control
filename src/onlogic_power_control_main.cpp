@@ -354,22 +354,20 @@ void run_handler_tests() {
 
     // --- GET COMMANDS FIRST ---
     Host::HostState host_state;
-    Host::RestartCause restart_cause;
-    std::pair<Host::HostState, Host::RestartCause> state_and_cause;
-    SMBUSCapability capability;
-
     auto status = handler.GetPowerState(host_state);
     info("GetPowerState: {STATUS}, state: {STATE}",
          "STATUS", std::to_underlying(status),
          "STATE", std::to_underlying(host_state));
     sleep(1);
 
+    Host::RestartCause restart_cause;
     status = handler.GetTransitionCause(restart_cause);
     info("GetTransitionCause: {STATUS}, cause: {CAUSE}",
          "STATUS", std::to_underlying(status),
          "CAUSE", std::to_underlying(restart_cause));
     sleep(1);
 
+    std::pair<Host::HostState, Host::RestartCause> state_and_cause;
     status = handler.GetStateAndTransitionCause(state_and_cause);
     info("GetStateAndTransitionCause: {STATUS}, state: {STATE}, cause: {CAUSE}",
          "STATUS", std::to_underlying(status),
@@ -377,6 +375,7 @@ void run_handler_tests() {
          "CAUSE", std::to_underlying(state_and_cause.second));
     sleep(1);
 
+    SMBUSCapability capability;
     status = handler.GetCapability(capability);
     info("GetCapability: {STATUS}, capability: {CAP}",
          "STATUS", std::to_underlying(status),
