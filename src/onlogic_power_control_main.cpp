@@ -387,9 +387,9 @@ void run_handler_tests() {
     info("IssueAwakeCmd: {STATUS}", "STATUS", std::to_underlying(status));
     sleep(5);
 
-    status = handler.IssueSoftReset();
-    info("IssueSoftReset: {STATUS}", "STATUS", std::to_underlying(status));
-    sleep(5);
+    // status = handler.IssueSoftReset();
+    // info("IssueSoftReset: {STATUS}", "STATUS", std::to_underlying(status));
+    // sleep(5);
 
     status = handler.IssueHardReset();
     info("IssueHardReset: {STATUS}", "STATUS", std::to_underlying(status));
@@ -397,6 +397,10 @@ void run_handler_tests() {
 
     status = handler.IssueSoftShutdown();
     info("IssueSoftShutdown: {STATUS}", "STATUS", std::to_underlying(status));
+    sleep(5);
+
+    status = handler.IssueAwakeCmd();
+    info("IssueAwakeCmd: {STATUS}", "STATUS", std::to_underlying(status));
     sleep(5);
 
     status = handler.IssueHardShutdown();
