@@ -429,5 +429,5 @@ int main(int argc, char* argv[]) {
 
     io.run();
 */
-    run_handler_tests()
+    run_handler_tests();
 }
