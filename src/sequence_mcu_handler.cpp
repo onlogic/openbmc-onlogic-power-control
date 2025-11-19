@@ -168,8 +168,9 @@ SMBUSOperationStatus SequenceMCUHandler::IssueHardShutdown(uint8_t retries) {
 SMBUSOperationStatus SequenceMCUHandler::GetPowerState(Host::HostState& current_power_state) {
     uint8_t output;
     int operation_status;
-    operation_status = sequence_smbus_instance_.SmbusSubaddressReadByte(std::to_underlying(CommandCode::GetPowerstate), 
-                                                                        &output);
+    operation_status 
+        = sequence_smbus_instance_.SmbusSubaddressReadByte(std::to_underlying(CommandCode::GetPowerstate), 
+                                                           &output);
     if (operation_status < 0) {
         return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
     }
