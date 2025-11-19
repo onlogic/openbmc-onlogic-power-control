@@ -43,6 +43,11 @@
 #include <xyz/openbmc_project/State/Host/common.hpp>
 #include <phosphor-logging/lg2.hpp>
 #include <unordered_map>
+#include <mutex>
+#include <thread>
+
+#include <chrono>
+using namespace std::chrono_literals;
 
 #include "smbus_manager.hpp"
 PHOSPHOR_LOG2_USING;
@@ -104,6 +109,7 @@ enum class SMBUSOperationStatus : uint8_t {
     kSMBUSOperationStatus_Success          = 0x00,
     kSMBUSOperationStatus_ProtocolError    = 0x01,
     kSMBUSOperationStatus_InvalidCommand   = 0x02,
+    kSMBUSOperationStatus_InvalidRetries   = 0x02,
     kSMBUSOperationStatus_Undefined        = 0xFF,
 };
 
@@ -124,13 +130,11 @@ class SequenceMCUHandler {
 
         ~SequenceMCUHandler() {}
 
-        // NOTE: May reduce to one issue transition function with parameter if 
-        // not needed
-        SMBUSOperationStatus IssueAwakeCmd();
-        SMBUSOperationStatus IssueSoftReset();
-        SMBUSOperationStatus IssueHardReset();
-        SMBUSOperationStatus IssueSoftShutdown();
-        SMBUSOperationStatus IssueHardShutdown();
+        SMBUSOperationStatus IssueAwakeCmd(uint8_t retries = 3);
+        SMBUSOperationStatus IssueSoftReset(uint8_t retries = 3);
+        SMBUSOperationStatus IssueHardReset(uint8_t retries = 3);
+        SMBUSOperationStatus IssueSoftShutdown(uint8_t retries = 3);
+        SMBUSOperationStatus IssueHardShutdown(uint8_t retries = 3);
 
         SMBUSOperationStatus GetPowerState(Host::HostState& current_power_state);
         SMBUSOperationStatus GetTransitionCause(Host::RestartCause& transition_cause);
@@ -151,6 +155,13 @@ class SequenceMCUHandler {
             Host::HostState last_known_power_state;
         };
 
+        // TODO: make sure two threads don't access ioctl at same time during smbus writes
+        std::mutex ioctl_lock{}; // ioctl_lock.load(); ioctl_lock.exchange(false); 
+        
+        // TODO: Atomic variable that will stop fired commands when a new one comes in
+        //       if execution flow overlaps
+        std::atomic<bool> should_stop{false};
+
     private:
         SMBUSManager& sequence_smbus_instance_;
         SequenceMcuContext seq_mcu_ctx_;
@@ -165,10 +176,6 @@ class SequenceMCUHandler {
 
             return init_return;
         };
-
-        // needed for retry events, how are supposed to know whether the operation succeeded?
-        // what are we supposed to retry until?
-        PowerEvent GetTargetState(PowerState current_power_state, PowerEvent requested_power_event);
     };
 
 #endif // SEQUENCE_MCU_HANDLER_HPP_

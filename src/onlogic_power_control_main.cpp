@@ -277,13 +277,37 @@ private:
     /// @brief Interogates the system to determine the initial host state on BMC startup
     void determineInitialState()
     {
-        // TODO(BMC-19): currentHostState should be determined by querying the sequence MCU for the actual host state
-        currentHostState(HostState::Running);
-        // TODO(BMC-19): requestedHostTransition should match the currentHostState on BMC startup
-        requestedHostTransition(Transition::On);
+        SMBUSOperationStatus status;
+        std::pair<Host::HostState, Host::RestartCause> state_and_cause;
+        status = seq_mcu_comm_handler_.GetStateAndTransitionCause(state_and_cause);
 
-        // TODO(BMC-80): restartCause should be determined by querying the sequence MCU or BIOS for the actual restart cause
-        restartCause(RestartCause::Unknown);
+        info("GetStateAndTransitionCause: {STATUS}, state: {STATE}, cause: {CAUSE}",
+            "STATUS", std::to_underlying(status),
+            "STATE", std::to_underlying(state_and_cause.first),
+            "CAUSE", std::to_underlying(state_and_cause.second));
+
+        // TODO set the corresponding cached variables within SequenceMCUHandler
+
+        // (BMC-19): currentHostState should be determined by querying the sequence MCU for the actual host state
+        // (BMC-80): restartCause should be determined by querying the sequence MCU or BIOS for the actual restart cause
+        if (status != SMBUSOperationStatus::kSMBUSOperationStatus_Success) {
+            currentHostState(HostState::Running);
+            restartCause(RestartCause::Unknown);
+            requestedHostTransition(Transition::On);
+            return; 
+        }
+
+        currentHostState(state_and_cause.first);
+        restartCause(state_and_cause.second);
+        
+         // (BMC-19): requestedPowerTransition should match the currentPowerState on BMC startup
+        if (state_and_cause.first == HostState::Running ||
+            state_and_cause.first == HostState::TransitioningToRunning) {
+            requestedHostTransition(Transition::On);
+            return;
+        }
+
+        requestedHostTransition(Transition::Off);
     }
 
 public:
@@ -433,7 +457,7 @@ int main(int argc, char* argv[]) {
 
     SMBUSManager smbus_manager("/dev/i2c-1", 
         std::to_underlying(SlaveAddressTable::kSlaveAddress_SequenceMCU));
-    
+
     smbus_manager.InitSMBUSManager();
 
     SequenceMCUHandler seq_mcu_comm_handler(smbus_manager);

@@ -15,6 +15,8 @@ To test the Host and Chassis DBus interfaces you can either use the WebUI or the
    This signal is used to send the host to S5 through graceful shutdown.
 * `obmcutil poweron` - Sets `requestedHostTransition` to `xyz.openbmc_project.State.Host.Transition.On`
 
+* `obmcutil 
+
    This signal is used to wake the host into a S0 state, no matter the current Host or Chassis state.
 * `obmcutil chassisoff` - Sets `requestedPowerTransition` to `xyz.openbmc_project.State.Chassis.Transition.Off`
 

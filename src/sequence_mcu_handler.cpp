@@ -63,24 +63,38 @@ const std::unordered_map<uint8_t, Host::RestartCause> SequenceMCUHandler::mapTra
     {std::to_underlying(TransitionCause::kTransitionCause_BMCSetEventError),        Host::RestartCause::Unknown}
 };
 
-SMBUSOperationStatus SequenceMCUHandler::IssueAwakeCmd() {
+SMBUSOperationStatus SequenceMCUHandler::IssueAwakeCmd(uint8_t retries) {
+    if (!retries) {
+        return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidRetries;
+    }
     // primative smbus interface to issue Hard Reset command
     int operation_status;
-    operation_status = sequence_smbus_instance_.SmbusWriteByte(std::to_underlying(CommandCode::SetPowerState), 
-                                                               std::to_underlying(PowerEvent::kPowerEvent_Awake));
-    if (operation_status < 0) {
-        return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
+    for(uint8_t attempt = 0; attempt < retries; ++attempt) {
+        operation_status = 
+            sequence_smbus_instance_.SmbusWriteByte(std::to_underlying(CommandCode::SetPowerState), 
+                                                    std::to_underlying(PowerEvent::kPowerEvent_Awake));
+        if (operation_status < 0) {
+            std::this_thread::sleep_for(1000ms);
+            continue;
+        } else {
+            return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
+        }
     }
 
-    return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
+    return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
 }
 
-SMBUSOperationStatus SequenceMCUHandler::IssueSoftReset() {
+SMBUSOperationStatus SequenceMCUHandler::IssueSoftReset(uint8_t retries) {
+    if (!retries) {
+        return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidRetries;
+    }
     SMBUSOperationStatus operation_status;
 
     operation_status = IssueSoftShutdown();
     if (operation_status != SMBUSOperationStatus::kSMBUSOperationStatus_Success)
         return operation_status;
+    
+    std::this_thread::sleep_for(1000ms);
 
     operation_status = IssueAwakeCmd();
     if (operation_status != SMBUSOperationStatus::kSMBUSOperationStatus_Success)
@@ -89,40 +103,66 @@ SMBUSOperationStatus SequenceMCUHandler::IssueSoftReset() {
     return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
 }
 
-SMBUSOperationStatus SequenceMCUHandler::IssueHardReset() {
+SMBUSOperationStatus SequenceMCUHandler::IssueHardReset(uint8_t retries) {
+    if (!retries) {
+        return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidRetries;
+    }
+
     // primative smbus interface to issue Hard Reset command
     int operation_status;
-    operation_status = sequence_smbus_instance_.SmbusWriteByte(std::to_underlying(CommandCode::SetPowerState), 
-                                                               std::to_underlying(PowerEvent::kPowerEvent_HardReset));
-    if (operation_status < 0) {
-        return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
+    for(uint8_t attempt = 0; attempt < retries; ++attempt) {
+        operation_status = 
+            sequence_smbus_instance_.SmbusWriteByte(std::to_underlying(CommandCode::SetPowerState), 
+                                                    std::to_underlying(PowerEvent::kPowerEvent_HardReset));
+        if (operation_status < 0) {
+            std::this_thread::sleep_for(1000ms);
+            continue;
+        } else {
+            return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
+        }
     }
 
-    return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
+    return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
 }
 
-SMBUSOperationStatus SequenceMCUHandler::IssueSoftShutdown() {
+SMBUSOperationStatus SequenceMCUHandler::IssueSoftShutdown(uint8_t retries) {
+    if (!retries) {
+        return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidRetries;
+    }
     // primative smbus interface to issue soft shutdown command
     int operation_status;
-    operation_status = sequence_smbus_instance_.SmbusWriteByte(std::to_underlying(CommandCode::SetPowerState), 
-                                                               std::to_underlying(PowerEvent::kPowerEvent_SoftOff));
-    if (operation_status < 0) {
-        return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
+    for(uint8_t attempt = 0; attempt < retries; ++attempt) {
+        operation_status = 
+            sequence_smbus_instance_.SmbusWriteByte(std::to_underlying(CommandCode::SetPowerState), 
+                                                    std::to_underlying(PowerEvent::kPowerEvent_SoftOff));
+        if (operation_status < 0) {
+            std::this_thread::sleep_for(1000ms);
+            continue;
+        }
     }
 
-    return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
+    return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
 }
 
-SMBUSOperationStatus SequenceMCUHandler::IssueHardShutdown() {
+SMBUSOperationStatus SequenceMCUHandler::IssueHardShutdown(uint8_t retries) {
+    if (!retries) {
+        return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidRetries;
+    }
     // primative smbus interface to issue hard shutdown command
     int operation_status;
-    operation_status = sequence_smbus_instance_.SmbusWriteByte(std::to_underlying(CommandCode::SetPowerState), 
-                                                               std::to_underlying(PowerEvent::kPowerEvent_HardOff));
-    if (operation_status < 0) {
-        return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
+    for(uint8_t attempt = 0; attempt < retries; ++attempt) {
+        operation_status 
+            = sequence_smbus_instance_.SmbusWriteByte(std::to_underlying(CommandCode::SetPowerState), 
+                                                      std::to_underlying(PowerEvent::kPowerEvent_HardOff));
+        if (operation_status < 0) {
+            std::this_thread::sleep_for(1000ms);
+            continue;
+        } else {
+            return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
+        }
     }
 
-    return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
+    return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
 }
 
 SMBUSOperationStatus SequenceMCUHandler::GetPowerState(Host::HostState& current_power_state) {
@@ -149,6 +189,7 @@ SMBUSOperationStatus SequenceMCUHandler::GetTransitionCause(Host::RestartCause& 
     int operation_status;
     operation_status = sequence_smbus_instance_.SmbusSubaddressReadByte(
         std::to_underlying(CommandCode::GetTransitionCause), &output);
+
     if (operation_status < 0) {
         return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
     }
@@ -203,6 +244,7 @@ SMBUSOperationStatus SequenceMCUHandler::GetCapability(SMBUSCapability& get_capa
     int operation_status;
     operation_status = sequence_smbus_instance_.SmbusSubaddressReadByte(
         std::to_underlying(CommandCode::GetCapabilities), &output);
+
     if (operation_status < 0) {
         return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
     }
