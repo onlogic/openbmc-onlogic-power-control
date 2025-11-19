@@ -147,6 +147,7 @@ private:
     /// @brief Interogates the system to determine the initial chassis state on BMC startup
     void determineInitialState()
     {
+        // NOTE: chassis determineInitialState should be initted after host  
         using Host = sdbusplus::common::xyz::openbmc_project::state::Host;
 
         // We will just always assume Power Good if the BMC has power for now. 
