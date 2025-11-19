@@ -147,15 +147,30 @@ private:
     /// @brief Interogates the system to determine the initial chassis state on BMC startup
     void determineInitialState()
     {
+        using Host = sdbusplus::common::xyz::openbmc_project::state::Host;
+
         // We will just always assume Power Good if the BMC has power for now. 
         // We can improve this later by including brownout detection and UPS status when available from the sequence MCU
         currentPowerStatus(PowerStatus::Good);
 
         // TODO(BMC-19): currentPowerState should be determined by querying the sequence MCU for the actual chassis power state
-        currentPowerState(PowerState::On);
+        Host::HostState cached_state = seq_mcu_comm_handler_.GetLastKnownPowerStateCache();
 
-        // TODO(BMC-19): requestedPowerTransition should match the currentPowerState on BMC startup
-        requestedPowerTransition(Transition::On);
+        info("Chassis Initial State (from Cache): {STATE}", 
+             "STATE", std::to_underlying(cached_state));
+
+        // map cached host state to chassis datatype
+        if (cached_state == Host::HostState::Running ||
+            cached_state == Host::HostState::TransitioningToRunning) {
+            
+            currentPowerState(Chassis::PowerState::On);
+            requestedPowerTransition(Chassis::Transition::On);
+        } 
+        else {
+            // off, quesced, standby, unknown
+            currentPowerState(Chassis::PowerState::Off);
+            requestedPowerTransition(Chassis::Transition::Off);
+        }
 
         lastStateChangeTime(getCurrentTimeMs());
     }
@@ -286,28 +301,39 @@ private:
             "STATE", std::to_underlying(state_and_cause.first),
             "CAUSE", std::to_underlying(state_and_cause.second));
 
-        // TODO set the corresponding cached variables within SequenceMCUHandler
-
         // (BMC-19): currentHostState should be determined by querying the sequence MCU for the actual host state
         // (BMC-80): restartCause should be determined by querying the sequence MCU or BIOS for the actual restart cause
         if (status != SMBUSOperationStatus::kSMBUSOperationStatus_Success) {
             currentHostState(HostState::Running);
             restartCause(RestartCause::Unknown);
             requestedHostTransition(Transition::On);
+
+            // update cache
+            seq_mcu_comm_handler_.SetLastKnownPowerStateCache(HostState::Running);
+            seq_mcu_comm_handler_.SetRestartCauseCache(RestartCause::Unknown);
+            seq_mcu_comm_handler_.SetPowerStateToTransmitCache(Transition::On);
+
             return; 
         }
 
         currentHostState(state_and_cause.first);
         restartCause(state_and_cause.second);
         
+        Host::Transition type_to_init;  
          // (BMC-19): requestedPowerTransition should match the currentPowerState on BMC startup
         if (state_and_cause.first == HostState::Running ||
             state_and_cause.first == HostState::TransitioningToRunning) {
-            requestedHostTransition(Transition::On);
-            return;
+            type_to_init = Transition::On;
+        } else {
+            type_to_init = Transition::Off;
         }
 
-        requestedHostTransition(Transition::Off);
+        requestedHostTransition(type_to_init);
+
+        // update cache
+        seq_mcu_comm_handler_.SetPowerStateToTransmitCache(type_to_init);
+        seq_mcu_comm_handler_.SetLastKnownPowerStateCache(state_and_cause.first);
+        seq_mcu_comm_handler_.SetRestartCauseCache(state_and_cause.second);
     }
 
 public:
@@ -466,8 +492,8 @@ int main(int argc, char* argv[]) {
     auto conn = std::make_shared<sdbusplus::asio::connection>(io);
 
     Power power0(conn, node);
-    Chassis chassis0(conn, node, seq_mcu_comm_handler);
     Host host0(conn, node, seq_mcu_comm_handler);
+    Chassis chassis0(conn, node, seq_mcu_comm_handler);
 
     io.run();
 }

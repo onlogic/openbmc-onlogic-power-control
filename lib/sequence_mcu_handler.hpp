@@ -149,11 +149,21 @@ class SequenceMCUHandler {
 
         // Cache of important operational details
         struct SequenceMcuContext {
-            Host::HostState power_state_to_transmit;
+            Host::Transition power_state_to_transmit;
             SMBUSCapability capabilities;
             Host::RestartCause last_known_transition_cause;
             Host::HostState last_known_power_state;
         };
+
+        inline Host::Transition GetPowerStateToTransmitCache() { return seq_mcu_ctx_.power_state_to_transmit; };
+        inline SMBUSCapability GetSMBUSCapabilityCache() { return seq_mcu_ctx_.capabilities; };   
+        inline Host::RestartCause GetRestartCauseCache() { return seq_mcu_ctx_.last_known_transition_cause; };
+        inline Host::HostState GetLastKnownPowerStateCache() { return seq_mcu_ctx_.last_known_power_state; };
+        
+        inline void SetPowerStateToTransmitCache( const Host::Transition pwr_state_to_tmst ) { seq_mcu_ctx_.power_state_to_transmit = pwr_state_to_tmst; };
+        inline void SetSMBUSCapabilityCache(const SMBUSCapability cap) { seq_mcu_ctx_.capabilities = cap; }
+        inline void SetRestartCauseCache(const Host::RestartCause cause) { seq_mcu_ctx_.last_known_transition_cause = cause; }
+        inline void SetLastKnownPowerStateCache(const Host::HostState state) { seq_mcu_ctx_.last_known_power_state = state; }
 
         // TODO: make sure two threads don't access ioctl at same time during smbus writes
         std::mutex ioctl_lock{}; // ioctl_lock.load(); ioctl_lock.exchange(false); 
@@ -168,7 +178,7 @@ class SequenceMCUHandler {
 
         inline SequenceMcuContext InitSequenceMcuContext(void) {
             SequenceMcuContext init_return = {
-                .power_state_to_transmit     = Host::HostState::Off,
+                .power_state_to_transmit     = Host::Transition::Off,
                 .capabilities                = SMBUSCapability::kSmbusCapabilities_Unknown,
                 .last_known_transition_cause = Host::RestartCause::Unknown,
                 .last_known_power_state      = Host::HostState::Off

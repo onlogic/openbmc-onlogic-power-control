@@ -24,7 +24,7 @@ const std::unordered_map<uint8_t, SMBUSCapability> SequenceMCUHandler::validCapa
 
 const std::unordered_map<uint8_t, Host::RestartCause> SequenceMCUHandler::mapTransitionCauseIPMItoOBMC = {
     // Unknown or generic
-    {std::to_underlying(TransitionCause::kTransitionCause_Unknown),               Host::RestartCause::Unknown},
+    {std::to_underlying(TransitionCause::kTransitionCause_Unknown),                Host::RestartCause::Unknown},
 
     // Remote/BMC commands
     {std::to_underlying(TransitionCause::kTransitionCause_ChassisControl),         Host::RestartCause::RemoteCommand},
@@ -67,7 +67,7 @@ SMBUSOperationStatus SequenceMCUHandler::IssueAwakeCmd(uint8_t retries) {
     if (!retries) {
         return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidRetries;
     }
-    // primative smbus interface to issue Hard Reset command
+    // primative smbus interface to issue awake command
     int operation_status;
     for(uint8_t attempt = 0; attempt < retries; ++attempt) {
         operation_status = 
@@ -88,8 +88,8 @@ SMBUSOperationStatus SequenceMCUHandler::IssueSoftReset(uint8_t retries) {
     if (!retries) {
         return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidRetries;
     }
-    SMBUSOperationStatus operation_status;
 
+    SMBUSOperationStatus operation_status;
     operation_status = IssueSoftShutdown();
     if (operation_status != SMBUSOperationStatus::kSMBUSOperationStatus_Success)
         return operation_status;
@@ -129,7 +129,7 @@ SMBUSOperationStatus SequenceMCUHandler::IssueSoftShutdown(uint8_t retries) {
     if (!retries) {
         return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidRetries;
     }
-    // primative smbus interface to issue soft shutdown command
+
     int operation_status;
     for(uint8_t attempt = 0; attempt < retries; ++attempt) {
         operation_status = 
@@ -148,7 +148,7 @@ SMBUSOperationStatus SequenceMCUHandler::IssueHardShutdown(uint8_t retries) {
     if (!retries) {
         return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidRetries;
     }
-    // primative smbus interface to issue hard shutdown command
+
     int operation_status;
     for(uint8_t attempt = 0; attempt < retries; ++attempt) {
         operation_status 
@@ -181,6 +181,10 @@ SMBUSOperationStatus SequenceMCUHandler::GetPowerState(Host::HostState& current_
 
     // get our target in host-dbus compatable form
     current_power_state = nativeToHostState.at(output);
+    
+    // update cache
+    seq_mcu_ctx_.last_known_power_state = current_power_state;
+
     return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
 }
 
@@ -197,8 +201,12 @@ SMBUSOperationStatus SequenceMCUHandler::GetTransitionCause(Host::RestartCause& 
     if (!mapTransitionCauseIPMItoOBMC.contains(output)) {
         return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidCommand;
     }
-    
+
     transition_cause = mapTransitionCauseIPMItoOBMC.at(output);
+
+    // update cache
+    seq_mcu_ctx_.last_known_transition_cause = transition_cause;
+
     return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
 }
 
@@ -229,12 +237,15 @@ SMBUSOperationStatus SequenceMCUHandler::GetStateAndTransitionCause(std::pair<Ho
 
     gst_pair.first = nativeToHostState.at(buf[0]);
 
-    // TODO correctly map transition causes from IPMI to custom OBMC interface
     if (!mapTransitionCauseIPMItoOBMC.contains(buf[1])) {
         return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidCommand;
     }
 
     gst_pair.second = mapTransitionCauseIPMItoOBMC.at(buf[1]);
+
+    // update cache
+    seq_mcu_ctx_.last_known_power_state = gst_pair.first;
+    seq_mcu_ctx_.last_known_transition_cause = gst_pair.second;
 
     return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
 }
@@ -254,6 +265,9 @@ SMBUSOperationStatus SequenceMCUHandler::GetCapability(SMBUSCapability& get_capa
     }
 
     get_capability = validCapabilities.at(output);
+
+    // update cache
+    seq_mcu_ctx_.capabilities = get_capability;
 
     return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
 }
