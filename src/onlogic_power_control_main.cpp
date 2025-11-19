@@ -308,12 +308,6 @@ private:
             currentHostState(HostState::Running);
             restartCause(RestartCause::Unknown);
             requestedHostTransition(Transition::On);
-
-            // update cache
-            seq_mcu_comm_handler_.SetLastKnownPowerStateCache(HostState::Running);
-            seq_mcu_comm_handler_.SetRestartCauseCache(RestartCause::Unknown);
-            seq_mcu_comm_handler_.SetPowerStateToTransmitCache(Transition::On);
-
             return; 
         }
 
@@ -330,11 +324,6 @@ private:
         }
 
         requestedHostTransition(type_to_init);
-
-        // update cache
-        seq_mcu_comm_handler_.SetPowerStateToTransmitCache(type_to_init);
-        seq_mcu_comm_handler_.SetLastKnownPowerStateCache(state_and_cause.first);
-        seq_mcu_comm_handler_.SetRestartCauseCache(state_and_cause.second);
     }
 
 public:

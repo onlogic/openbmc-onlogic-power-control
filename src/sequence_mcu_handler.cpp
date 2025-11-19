@@ -5,14 +5,14 @@ using Host = SequenceMCUHandler::Host;
 const std::unordered_map<Host::HostState, uint8_t> SequenceMCUHandler::hostStateToNative = {
     { Host::HostState::Running,  std::to_underlying(PowerState::kSLP_S0) },
     { Host::HostState::Standby,  std::to_underlying(PowerState::kSLP_S3) },
-    { Host::HostState::Quiesced, std::to_underlying(PowerState::kSLP_S4) },
+    { Host::HostState::Standby, std::to_underlying(PowerState::kSLP_S4) },
     { Host::HostState::Off,      std::to_underlying(PowerState::kSLP_S5) },
 };
 
 const std::unordered_map<uint8_t, Host::HostState> SequenceMCUHandler::nativeToHostState = {
     { std::to_underlying(PowerState::kSLP_S0), Host::HostState::Running  },
     { std::to_underlying(PowerState::kSLP_S3), Host::HostState::Standby  },
-    { std::to_underlying(PowerState::kSLP_S4), Host::HostState::Quiesced },
+    { std::to_underlying(PowerState::kSLP_S4), Host::HostState::Standby },
     { std::to_underlying(PowerState::kSLP_S5), Host::HostState::Off      },
 };
 

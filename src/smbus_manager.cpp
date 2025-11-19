@@ -12,7 +12,7 @@ SMBUSManager::~SMBUSManager() {
 
 int SMBUSManager::InitSMBUSManager() {
     if (fd_ >= 0) {
-        error("SMBUS_MANAGER :: The FD is already in use.");
+        info("SMBUS_MANAGER :: The FD is already in use.");
         return 0;
     }
 
