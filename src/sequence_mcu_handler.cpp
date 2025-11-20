@@ -1,18 +1,21 @@
 #include "sequence_mcu_handler.hpp"
 
 using Host = SequenceMCUHandler::Host;
+using Chassis = sdbusplus::common::xyz::openbmc_project::state::Chassis;
+
+// ----------------------------------- Host State Mappings ----------------------------------- //
 
 const std::unordered_map<Host::HostState, uint8_t> SequenceMCUHandler::hostStateToNative = {
     { Host::HostState::Running,  std::to_underlying(PowerState::kSLP_S0) },
     { Host::HostState::Standby,  std::to_underlying(PowerState::kSLP_S3) },
-    { Host::HostState::Standby, std::to_underlying(PowerState::kSLP_S4) },
+    { Host::HostState::Standby, std::to_underlying(PowerState::kSLP_S4)  },
     { Host::HostState::Off,      std::to_underlying(PowerState::kSLP_S5) },
 };
 
 const std::unordered_map<uint8_t, Host::HostState> SequenceMCUHandler::nativeToHostState = {
     { std::to_underlying(PowerState::kSLP_S0), Host::HostState::Running  },
     { std::to_underlying(PowerState::kSLP_S3), Host::HostState::Standby  },
-    { std::to_underlying(PowerState::kSLP_S4), Host::HostState::Standby },
+    { std::to_underlying(PowerState::kSLP_S4), Host::HostState::Standby  },
     { std::to_underlying(PowerState::kSLP_S5), Host::HostState::Off      },
 };
 
@@ -51,9 +54,6 @@ const std::unordered_map<uint8_t, Host::RestartCause> SequenceMCUHandler::mapTra
     // Scheduled/RTC/Timer
     {std::to_underlying(TransitionCause::kTransitionCause_PowerUpRtc),              Host::RestartCause::ScheduledPowerOn},
     {std::to_underlying(TransitionCause::kTransitionCause_IgnitionStartupTimer),    Host::RestartCause::ScheduledPowerOn},
- 
-    // Host crash
-    // Nothing yet
 
     // OEM/Other
     {std::to_underlying(TransitionCause::kTransitionCause_Oem),                     Host::RestartCause::Unknown},
@@ -62,6 +62,66 @@ const std::unordered_map<uint8_t, Host::RestartCause> SequenceMCUHandler::mapTra
     {std::to_underlying(TransitionCause::kTransitionCause_BMCSetValidationError),   Host::RestartCause::Unknown},
     {std::to_underlying(TransitionCause::kTransitionCause_BMCSetEventError),        Host::RestartCause::Unknown}
 };
+
+// ----------------------------------- Chassis State Mappings ----------------------------------- //
+
+const std::unordered_map<Chassis::Transition, uint8_t> SequenceMCUHandler::chassisTransitionToNative = {
+    { Chassis::Transition::On,          std::to_underlying(PowerEvent::kPowerEvent_Awake)     },
+    { Chassis::Transition::Off,         std::to_underlying(PowerEvent::kPowerEvent_HardOff)   },
+    { Chassis::Transition::PowerCycle,  std::to_underlying(PowerEvent::kPowerEvent_HardReset) },
+};
+
+const std::unordered_map<uint8_t, Chassis::PowerState> SequenceMCUHandler::nativeToChassisState = {
+    { std::to_underlying(PowerState::kSLP_S0),      Chassis::PowerState::On  },
+    { std::to_underlying(PowerState::kSLP_S3),      Chassis::PowerState::On  },
+    { std::to_underlying(PowerState::kSLP_S4),      Chassis::PowerState::On  },
+    { std::to_underlying(PowerState::kSLP_S5),      Chassis::PowerState::Off },
+    { std::to_underlying(PowerState::kSLP_LP),      Chassis::PowerState::Off },
+    { std::to_underlying(PowerState::kSLP_Unknown), Chassis::PowerState::Off }
+};
+
+const std::unordered_map<Chassis::PowerState, uint8_t> SequenceMCUHandler::chassisStateToNative = {
+    { Chassis::PowerState::On,  std::to_underlying(PowerState::kSLP_S0) },
+    { Chassis::PowerState::Off, std::to_underlying(PowerState::kSLP_S5) },
+    // Transitioning states map to their target state expectations or are ignored in static lookups
+    { Chassis::PowerState::TransitioningToOn,  std::to_underlying(PowerState::kSLP_S0) },
+    { Chassis::PowerState::TransitioningToOff, std::to_underlying(PowerState::kSLP_S5) },
+};
+
+const std::unordered_map<uint8_t, Chassis::PowerStatus> SequenceMCUHandler::mapTransitionCauseToChassisPowerStatus = {
+    // ------------------------- Good / Normal Operation -------------------------
+    // Explicit Commands 
+    {std::to_underlying(TransitionCause::kTransitionCause_ChassisControl),          Chassis::PowerStatus::Good},
+    {std::to_underlying(TransitionCause::kTransitionCause_SoftReset),               Chassis::PowerStatus::Good},
+    {std::to_underlying(TransitionCause::kTransitionCause_BMCVirtualPowerButtonPress), Chassis::PowerStatus::Good},
+    {std::to_underlying(TransitionCause::kTransitionCause_BMCVirtualResetPress),    Chassis::PowerStatus::Good},
+
+    // Physical Button Presses
+    {std::to_underlying(TransitionCause::kTransitionCause_ResetPushbutton),         Chassis::PowerStatus::Good},
+    {std::to_underlying(TransitionCause::kTransitionCause_PowerUpPushbutton),       Chassis::PowerStatus::Good},
+
+    // power restoration
+    {std::to_underlying(TransitionCause::kTransitionCause_AcRestoreAlways),         Chassis::PowerStatus::Good},
+    {std::to_underlying(TransitionCause::kTransitionCause_AcRestorePrevious),       Chassis::PowerStatus::Good},
+
+    // logical interruptions, these are good
+    {std::to_underlying(TransitionCause::kTransitionCause_WatchdogExpiration),      Chassis::PowerStatus::Good},
+    {std::to_underlying(TransitionCause::kTransitionCause_PowerUpRtc),              Chassis::PowerStatus::Good},
+    {std::to_underlying(TransitionCause::kTransitionCause_IgnitionStartupTimer),    Chassis::PowerStatus::Good},
+    {std::to_underlying(TransitionCause::kTransitionCause_IgnitionSoftOffTimer),    Chassis::PowerStatus::Good},
+    {std::to_underlying(TransitionCause::kTransitionCause_IgnitionHardOffTimer),    Chassis::PowerStatus::Good},
+
+    // unknown
+    {std::to_underlying(TransitionCause::kTransitionCause_Unknown),                 Chassis::PowerStatus::Undefined},
+    {std::to_underlying(TransitionCause::kTransitionCause_Oem),                     Chassis::PowerStatus::Undefined},
+    {std::to_underlying(TransitionCause::kTransitionCause_ResetPef),                Chassis::PowerStatus::Undefined},
+    {std::to_underlying(TransitionCause::kTransitionCause_PowerCyclePef),           Chassis::PowerStatus::Undefined},
+    {std::to_underlying(TransitionCause::kTransitionCause_BMCSetValidationError),   Chassis::PowerStatus::Undefined},
+    {std::to_underlying(TransitionCause::kTransitionCause_BMCSetEventError),        Chassis::PowerStatus::Undefined},
+    {std::to_underlying(TransitionCause::kTransitionCause_IgnitionLowVoltageTimer), Chassis::PowerStatus::Undefined}
+};
+
+// ---------------------------------------------------------------------------------------------- //
 
 SMBUSOperationStatus SequenceMCUHandler::IssueAwakeCmd(uint8_t retries) {
     if (!retries) {
@@ -247,6 +307,83 @@ SMBUSOperationStatus SequenceMCUHandler::GetStateAndTransitionCause(std::pair<Ho
     // update cache
     seq_mcu_ctx_.last_known_power_state = gst_pair.first;
     seq_mcu_ctx_.last_known_transition_cause = gst_pair.second;
+
+    return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
+}
+
+SMBUSOperationStatus SequenceMCUHandler::GetChassisPowerState(Chassis::PowerState& current_power_state) {
+    uint8_t output;
+    int operation_status;
+    operation_status 
+        = sequence_smbus_instance_.SmbusSubaddressReadByte(std::to_underlying(CommandCode::GetPowerstate), 
+                                                           &output);
+    if (operation_status < 0) {
+        return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
+    }
+
+    if (!nativeToChassisState.contains(output)) {
+        return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidCommand;
+    }
+
+    current_power_state = nativeToChassisState.at(output);
+    
+    // update cache
+    seq_mcu_ctx_.last_known_chassis_power_state = current_power_state;
+
+    return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
+}
+
+SMBUSOperationStatus SequenceMCUHandler::GetChassisPowerStatus(Chassis::PowerStatus& power_status) {
+    uint8_t output;
+    int operation_status;
+    operation_status = sequence_smbus_instance_.SmbusSubaddressReadByte(
+        std::to_underlying(CommandCode::GetTransitionCause), &output);
+
+    if (operation_status < 0) {
+        return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
+    }
+
+    // Maps the raw 'Transition Cause' from the MCU to the 'Power Status'
+    if (!mapTransitionCauseToChassisPowerStatus.contains(output)) {
+        return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidCommand;
+    }
+
+    power_status = mapTransitionCauseToChassisPowerStatus.at(output);
+
+    // update cache
+    seq_mcu_ctx_.last_known_chassis_power_status = power_status;
+
+    return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
+}
+
+SMBUSOperationStatus SequenceMCUHandler::GetChassisStateAndPowerStatus(std::pair<Chassis::PowerState, Chassis::PowerStatus>& state_status_pair) {
+    uint8_t buf[STATE_AND_TCAUSE_SIZE];
+    size_t size_read;
+    int operation_status = sequence_smbus_instance_.SmbusSubaddressReadByteBlock(
+        std::to_underlying(CommandCode::GetPowerStateAndTransitionCause), 
+        STATE_AND_TCAUSE_SIZE,
+        buf, &size_read
+    );
+
+    if (operation_status < 0) {
+        error("BLOCK READ failed: {STATUS}", "STATUS", operation_status);
+        return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
+    }
+
+    if (!nativeToChassisState.contains(buf[0])) {
+        return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidCommand;
+    }
+    state_status_pair.first = nativeToChassisState.at(buf[0]);
+
+    // Map Transition Cause to Power Status
+    if (!mapTransitionCauseToChassisPowerStatus.contains(buf[1])) {
+        return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidCommand;
+    }
+    state_status_pair.second = mapTransitionCauseToChassisPowerStatus.at(buf[1]);
+
+    // update cache
+    seq_mcu_ctx_.last_known_chassis_power_state = state_status_pair.first;
+    seq_mcu_ctx_.last_known_chassis_power_status = state_status_pair.second;
 
     return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
 }

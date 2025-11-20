@@ -40,7 +40,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <utility> // std::pair, std::to_underlying
+
 #include <xyz/openbmc_project/State/Host/common.hpp>
+#include <xyz/openbmc_project/State/Chassis/common.hpp>
+
 #include <phosphor-logging/lg2.hpp>
 #include <unordered_map>
 #include <mutex>
@@ -89,12 +92,12 @@ enum class CommandCode : uint8_t {
 };
 
 enum class PowerState : uint8_t {
-  kSLP_S0                                   = 0x00,
-  kSLP_S3                                   = 0x03,
-  kSLP_S4                                   = 0x04,
-  kSLP_S5                                   = 0x05,
-  kSLP_LP                                   = 0x06,
-  kSLP_Unknown                              = 0xFF,
+    kSLP_S0                                 = 0x00,
+    kSLP_S3                                 = 0x03,
+    kSLP_S4                                 = 0x04,
+    kSLP_S5                                 = 0x05,
+    kSLP_LP                                 = 0x06,
+    kSLP_Unknown                            = 0xFF,
 };
 
 enum class PowerEvent : uint8_t {
@@ -122,6 +125,7 @@ enum class SMBUSCapability : uint8_t {
 class SequenceMCUHandler {
     public:
         using Host = sdbusplus::common::xyz::openbmc_project::state::Host;
+        using Chassis = sdbusplus::common::xyz::openbmc_project::state::Chassis;
 
         // https://google.github.io/styleguide/cppguide.html#Implicit_Conversions
         explicit SequenceMCUHandler(SMBUSManager& smbus_init) :
@@ -139,6 +143,12 @@ class SequenceMCUHandler {
         SMBUSOperationStatus GetPowerState(Host::HostState& current_power_state);
         SMBUSOperationStatus GetTransitionCause(Host::RestartCause& transition_cause);
         SMBUSOperationStatus GetStateAndTransitionCause(std::pair<Host::HostState, Host::RestartCause>& gst_pair);
+        
+         // Chassis Operations
+        SMBUSOperationStatus GetChassisPowerState(Chassis::PowerState& current_power_state);
+        SMBUSOperationStatus GetChassisPowerStatus(Chassis::PowerStatus& power_status);
+        SMBUSOperationStatus GetChassisStateAndPowerStatus(std::pair<Chassis::PowerState, Chassis::PowerStatus>& state_status_pair);
+
         SMBUSOperationStatus GetCapability(SMBUSCapability& get_capability);
 
         // make public just in case, static for one instance overall regardless of num
@@ -147,18 +157,33 @@ class SequenceMCUHandler {
         static const std::unordered_map<uint8_t, SMBUSCapability> validCapabilities;
         static const std::unordered_map<uint8_t, Host::RestartCause> mapTransitionCauseIPMItoOBMC;
 
+        static const std::unordered_map<uint8_t, Chassis::PowerState> nativeToChassisState;
+        static const std::unordered_map<Chassis::PowerState, uint8_t> chassisStateToNative;
+        static const std::unordered_map<Chassis::Transition, uint8_t> chassisTransitionToNative;
+        static const std::unordered_map<uint8_t, Chassis::PowerStatus> mapTransitionCauseToChassisPowerStatus;
+
         // Cache of important operational details
         struct SequenceMcuContext {
-            Host::Transition power_state_to_transmit;
             SMBUSCapability capabilities;
+
+            Host::Transition power_state_to_transmit;
             Host::RestartCause last_known_transition_cause;
             Host::HostState last_known_power_state;
+
+            Chassis::Transition chassis_transition_to_transmit;
+            Chassis::PowerState last_known_chassis_power_state;
+            Chassis::PowerStatus last_known_chassis_power_status;
         };
 
-        inline Host::Transition GetPowerStateToTransmitCache() { return seq_mcu_ctx_.power_state_to_transmit; };
         inline SMBUSCapability GetSMBUSCapabilityCache() { return seq_mcu_ctx_.capabilities; };   
+
+        inline Host::Transition GetPowerStateToTransmitCache() { return seq_mcu_ctx_.power_state_to_transmit; };
         inline Host::RestartCause GetRestartCauseCache() { return seq_mcu_ctx_.last_known_transition_cause; };
         inline Host::HostState GetLastKnownPowerStateCache() { return seq_mcu_ctx_.last_known_power_state; };
+
+        inline Chassis::Transition GetChassisTransitionCache() { return seq_mcu_ctx_.chassis_transition_to_transmit; };
+        inline Chassis::PowerState GetLastKnownChassisPowerStateCache() { return seq_mcu_ctx_.last_known_chassis_power_state; };
+        inline Chassis::PowerStatus GetLastKnownChassisPowerStatusCache() { return seq_mcu_ctx_.last_known_chassis_power_status; };
 
         // TODO: make sure two threads don't access ioctl at same time during smbus writes
         std::mutex ioctl_lock{}; // ioctl_lock.load(); ioctl_lock.exchange(false); 
@@ -173,10 +198,17 @@ class SequenceMCUHandler {
 
         inline SequenceMcuContext InitSequenceMcuContext(void) {
             SequenceMcuContext init_return = {
-                .power_state_to_transmit     = Host::Transition::Off,
                 .capabilities                = SMBUSCapability::kSmbusCapabilities_Unknown,
+
+                // Host Defaults
+                .power_state_to_transmit     = Host::Transition::Off,
                 .last_known_transition_cause = Host::RestartCause::Unknown,
-                .last_known_power_state      = Host::HostState::Quiesced
+                .last_known_power_state      = Host::HostState::Quiesced,
+
+                // Chassis Defaults
+                .chassis_transition_to_transmit  = Chassis::Transition::Off,
+                .last_known_chassis_power_state  = Chassis::PowerState::Off,
+                .last_known_chassis_power_status = Chassis::PowerStatus::Undefined
             };
 
             return init_return;

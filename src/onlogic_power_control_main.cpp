@@ -90,6 +90,10 @@ public:
                 seq_mcu_comm_handler_.IssueHardShutdown();
                 info("Hard Off Signal written");
                 break;
+            case (Chassis::Transition::PowerCycle) : {
+                seq_mcu_comm_handler_.IssueHardReset();
+                break;
+            }
             } default : {
                 error("Unhandled Request");
                 break;
@@ -147,32 +151,37 @@ private:
     /// @brief Interogates the system to determine the initial chassis state on BMC startup
     void determineInitialState()
     {
-        // NOTE: chassis determineInitialState should be initted after host  
-        using Host = sdbusplus::common::xyz::openbmc_project::state::Host;
+        SMBUSOperationStatus status;
+        std::pair<Chassis::PowerState, Chassis::PowerStatus> state_and_status;
 
-        // We will just always assume Power Good if the BMC has power for now. 
-        // We can improve this later by including brownout detection and UPS status when available from the sequence MCU
-        currentPowerStatus(PowerStatus::Good);
+        status = seq_mcu_comm_handler_.GetChassisStateAndPowerStatus(state_and_status);
 
-        // TODO(BMC-19): currentPowerState should be determined by querying the sequence MCU for the actual chassis power state
-        Host::HostState cached_state = seq_mcu_comm_handler_.GetLastKnownPowerStateCache();
+        info("GetChassisStateAndPowerStatus: {STATUS}, state: {STATE}, status: {STATUS_VAL}",
+            "STATUS", std::to_underlying(status),
+            "STATE", std::to_underlying(state_and_status.first),
+            "STATUS_VAL", std::to_underlying(state_and_status.second));
 
-        info("Chassis Initial State (from Cache): {STATE}", 
-             "STATE", std::to_underlying(cached_state));
-
-        // map cached host state to chassis datatype
-        if (cached_state == Host::HostState::Running ||
-            cached_state == Host::HostState::TransitioningToRunning) {
-            
-            currentPowerState(Chassis::PowerState::On);
-            requestedPowerTransition(Chassis::Transition::On);
-        } 
-        else {
-            // off, quesced, standby, unknown
-            currentPowerState(Chassis::PowerState::Off);
-            requestedPowerTransition(Chassis::Transition::Off);
+        if (status != SMBUSOperationStatus::kSMBUSOperationStatus_Success) {
+            // currentPowerState(Chassis::PowerState::On);
+            // currentPowerStatus(Chassis::PowerStatus::Good);
+            // requestedPowerTransition(Chassis::Transition::On);
+            lastStateChangeTime(getCurrentTimeMs());
+            return;
         }
 
+        currentPowerState(state_and_status.first);
+        currentPowerStatus(state_and_status.second);
+
+        Chassis::Transition type_to_init;
+        // requestedPowerTransition should match the currentPowerState on BMC startup
+        if (state_and_status.first == Chassis::PowerState::On) {
+            type_to_init = Chassis::Transition::On;
+        }
+        else {
+            type_to_init = Chassis::Transition::Off;
+        }
+
+        requestedPowerTransition(type_to_init);
         lastStateChangeTime(getCurrentTimeMs());
     }
 
@@ -210,7 +219,6 @@ public:
     /// @return - The updated requested host transition
     Transition requestedHostTransition(Transition value)
     {
-        // Noop hook: add logic here if needed
         info("Host{NODE}: Requested host transition from {OLD} to {NEW}", 
             "NODE", node_, "OLD", 
              sdbusplus::server::xyz::openbmc_project::state::Host::requestedHostTransition(), 
@@ -269,7 +277,7 @@ public:
         auto status = seq_mcu_comm_handler_.GetPowerState(host_state);
         if (status != SMBUSOperationStatus::kSMBUSOperationStatus_Success) {
             error("GET state failed: {STATUS}", "STATUS", std::to_underlying(status));
-            return HostState::Off; // there are no better placeholders
+            return sdbusplus::server::xyz::openbmc_project::state::Host::currentHostState();
         } else {
             info("GET state: {STATE}", "STATE", std::to_underlying(host_state));
         }
@@ -305,9 +313,9 @@ private:
         // (BMC-19): currentHostState should be determined by querying the sequence MCU for the actual host state
         // (BMC-80): restartCause should be determined by querying the sequence MCU or BIOS for the actual restart cause
         if (status != SMBUSOperationStatus::kSMBUSOperationStatus_Success) {
-            currentHostState(HostState::Running);
-            restartCause(RestartCause::Unknown);
-            requestedHostTransition(Transition::On);
+            // currentHostState(HostState::Running);
+            // restartCause(RestartCause::Unknown);
+            // requestedHostTransition(Transition::On);
             return; 
         }
 
