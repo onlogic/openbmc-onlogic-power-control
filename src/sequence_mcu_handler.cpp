@@ -89,7 +89,6 @@ const std::unordered_map<Chassis::PowerState, uint8_t> SequenceMCUHandler::chass
 };
 
 const std::unordered_map<uint8_t, Chassis::PowerStatus> SequenceMCUHandler::mapTransitionCauseToChassisPowerStatus = {
-    // ------------------------- Good / Normal Operation -------------------------
     // Explicit Commands 
     {std::to_underlying(TransitionCause::kTransitionCause_ChassisControl),          Chassis::PowerStatus::Good},
     {std::to_underlying(TransitionCause::kTransitionCause_SoftReset),               Chassis::PowerStatus::Good},
