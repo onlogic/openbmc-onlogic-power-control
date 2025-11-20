@@ -134,11 +134,20 @@ class SequenceMCUHandler {
 
         ~SequenceMCUHandler() {}
 
+        // void RegisterNotification(void(*)() listenerHandler);
+
+        // TODO
+        // void(*)() listenerHandlers[];
+
         SMBUSOperationStatus IssueAwakeCmd(uint8_t retries = 3);
         SMBUSOperationStatus IssueSoftReset(uint8_t retries = 3);
         SMBUSOperationStatus IssueHardReset(uint8_t retries = 3);
         SMBUSOperationStatus IssueSoftShutdown(uint8_t retries = 3);
         SMBUSOperationStatus IssueHardShutdown(uint8_t retries = 3);
+
+        // TODO
+        // PowerState GetPowerState();
+        // TransitionCause GetTransitionCause();
 
         SMBUSOperationStatus GetPowerState(Host::HostState& current_power_state);
         SMBUSOperationStatus GetTransitionCause(Host::RestartCause& transition_cause);
@@ -165,6 +174,9 @@ class SequenceMCUHandler {
         // Cache of important operational details
         struct SequenceMcuContext {
             SMBUSCapability capabilities;
+
+            // PowerState powerState;
+            // TransitionCause transitionCause;
 
             Host::Transition power_state_to_transmit;
             Host::RestartCause last_known_transition_cause;

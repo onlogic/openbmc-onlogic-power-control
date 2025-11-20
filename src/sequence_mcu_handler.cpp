@@ -120,6 +120,9 @@ const std::unordered_map<uint8_t, Chassis::PowerStatus> SequenceMCUHandler::mapT
     {std::to_underlying(TransitionCause::kTransitionCause_IgnitionLowVoltageTimer), Chassis::PowerStatus::Undefined}
 };
 
+// TODO
+// void SequenceRegisterNotification(void(*)() listenerHandler)
+
 // ---------------------------------------------------------------------------------------------- //
 
 SMBUSOperationStatus SequenceMCUHandler::IssueAwakeCmd(uint8_t retries) {

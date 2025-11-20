@@ -203,6 +203,8 @@ public:
     Host(std::shared_ptr<sdbusplus::asio::connection> conn, const std::string& node, SequenceMCUHandler& seq_mcu_comm_handler)
         : ObjectServer(*conn, getPath(node).c_str(), Host::default_service, node), node_(node), seq_mcu_comm_handler_(seq_mcu_comm_handler)
     {
+        //TODO
+        // seq_mcu_comm_handler_.RegisterNotification(this->MCUUpdateHandler)
         determineInitialState();
 
         // TODO(BMC-15): For Titanium and Tacton SMBus communication to the sequence MCU is isolated below S0
@@ -214,6 +216,14 @@ private:
     const std::string node_;
     SequenceMCUHandler& seq_mcu_comm_handler_;
 public:
+  
+    // TODO
+    // void MCUUpdateHandler() {
+    //     seq_mcu_comm_handler_.GetPowerState()
+    //     // do mapping
+    //     // do setting of base class values
+    // }
+
     /// @brief Sets the requested host transition
     /// @param value - Can be one of Off, On, Reboot, GracefulWarmReboot, ForceWarmReboot
     /// @return - The updated requested host transition
@@ -267,11 +277,10 @@ public:
     HostState currentHostState(HostState value)
     {
         info("Host{NODE}: Current host state change to {NEW}", "NODE", node_, "NEW", value);
-        sdbusplus::server::xyz::openbmc_project::state::Host::currentHostState(value);
-        return value;
+        return sdbusplus::server::xyz::openbmc_project::state::Host::currentHostState(value);
     }
 
-    HostState currentHostState() const
+    HostState currentHostState() //const
     {
         sdbusplus::common::xyz::openbmc_project::state::Host::HostState host_state;
         auto status = seq_mcu_comm_handler_.GetPowerState(host_state);
@@ -281,15 +290,15 @@ public:
         } else {
             info("GET state: {STATE}", "STATE", std::to_underlying(host_state));
         }
-        return host_state;
+        // return host_state;
+        return sdbusplus::server::xyz::openbmc_project::state::Host::currentHostState(host_state);
     }
 
     RestartCause restartCause(RestartCause value)
     {
         // Noop hook: add logic here if needed
         info("Host{NODE}: Restart cause change to {NEW}", "NODE", node_, "NEW", value);
-        sdbusplus::server::xyz::openbmc_project::state::Host::restartCause(value);
-        return value;
+        return sdbusplus::server::xyz::openbmc_project::state::Host::restartCause(value);
     }
 
     RestartCause restartCause() const
