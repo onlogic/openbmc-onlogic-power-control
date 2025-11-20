@@ -76,7 +76,6 @@ const std::unordered_map<uint8_t, Chassis::PowerState> SequenceMCUHandler::nativ
     { std::to_underlying(PowerState::kSLP_S3),      Chassis::PowerState::On  },
     { std::to_underlying(PowerState::kSLP_S4),      Chassis::PowerState::On  },
     { std::to_underlying(PowerState::kSLP_S5),      Chassis::PowerState::Off },
-    { std::to_underlying(PowerState::kSLP_LP),      Chassis::PowerState::Off },
     { std::to_underlying(PowerState::kSLP_Unknown), Chassis::PowerState::Off }
 };
 
