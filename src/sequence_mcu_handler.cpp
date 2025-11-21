@@ -142,13 +142,13 @@ void SequenceMCUHandler::StartPolling() {
         
         while (!this->stop_dbus_refresh_) {
 
-            info("Poll Loop Power State: {POWER_STATE}", 
-                 "POWER_STATE", 
-                 std::to_underlying(seq_mcu_ctx_.power_state));
-            
-            info("Poll Loop Transition Cause: {TRANSITION_CAUSE}",
-                 "TRANSITION_CAUSE", 
-                 std::to_underlying(seq_mcu_ctx_.transition_cause));
+            std::cerr << "Poll Loop Power State: " 
+                      << static_cast<int>(std::to_underlying(seq_mcu_ctx_.power_state)) 
+                      << std::endl;
+
+            std::cerr << "Poll Loop Transition Cause: " 
+                      << static_cast<int>(std::to_underlying(seq_mcu_ctx_.transition_cause)) 
+                      << std::endl;
 
             #ifdef CACHE_CHANGE_LOGIC
             if (last_power_state != seq_mcu_ctx_.power_state || 
