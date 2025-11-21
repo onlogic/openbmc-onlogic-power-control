@@ -23,8 +23,7 @@
  *      https://linux.kernel.narkive.com/PeNlDZ1K/i2c-smbus-question
  */
 
-#ifndef SMBUS_MANAGER_HPP_
-#define SMBUS_MANAGER_HPP_
+#pragma once
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -77,5 +76,3 @@ class SMBUSManager {
         uint8_t device_address_ = 0;
         int fd_ = -1;
 };
-
-#endif // SMBUS_MANAGER_HPP_

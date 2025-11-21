@@ -16,6 +16,8 @@ executable(
   'onlogic_power_control_main.cpp',
   'sequence_mcu_handler.cpp',
   'smbus_manager.cpp',
+  'chassis.cpp',
+  'host.cpp',
   generated_sources,
   dependencies : [
     sdbusplus,
