@@ -3,11 +3,11 @@
 // ---------------------------------------------------------------------------------------------- //
 
 SequenceMCUHandler::SequenceMCUHandler(SMBUSManager& smbus_init,
-                                       boost::asio::io_context io;) :
+                                       boost::asio::io_context& io) :
     sequence_smbus_instance_(smbus_init),
     seq_mcu_ctx_(InitSequenceMcuContext()),
     poll_timer_(io),
-    stop_dbus_refresh_(false),
+    stop_dbus_refresh_(false)
     {}
 
 SequenceMCUHandler::~SequenceMCUHandler() {
@@ -135,26 +135,26 @@ void SequenceMCUHandler::RegisterNotification(void (*listener_handler)()) {
 
 void SequenceMCUHandler::StartPolling() {
     boost::asio::spawn(poll_timer_.get_executor(), [this](boost::asio::yield_context yield) {
-        McuPowerState last_power_state = power_state;
-        TransitionCause last_cause = transition_cause;
-
+        #ifdef CACHE_CHANGE_LOGIC
+        McuPowerState last_power_state = seq_mcu_ctx_.power_state;
+        TransitionCause last_cause = seq_mcu_ctx_.transition_cause;
+        #endif
+        
         while (!this->stop_dbus_refresh_) {
 
-            McuPowerState current_state = power_state;
-            TransitionCause current_cause = transition_cause;
-
-            std::cout << std::to_underlying(current_state) << std::endl;
-            std::cout << std::to_underlying(current_cause) << std::endl;
+            std::cout << std::to_underlying(seq_mcu_ctx_.power_state) << std::endl;
+            std::cout << std::to_underlying(seq_mcu_ctx_.transition_cause) << std::endl;
 
             #ifdef CACHE_CHANGE_LOGIC
-            if (last_power_state != current_state || last_cause != current_cause) {
+            if (last_power_state != seq_mcu_ctx_.power_state || 
+                last_cause != seq_mcu_ctx_.transition_cause) {
                 
                 for (const auto& event_listener : this->listener_handlers) {
                     if (event_listener) event_listener();
                 }
 
-                last_power_state = current_state;
-                last_cause = current_cause;
+                last_power_state = seq_mcu_ctx_.power_state;
+                last_cause = seq_mcu_ctx_.transition_cause;
             }
             #endif
 

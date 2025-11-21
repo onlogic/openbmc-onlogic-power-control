@@ -41,8 +41,8 @@
 #include <utility> // std::pair, std::to_underlying
 #include <vector>
 
-#include <boost/asio/thread_pool.hpp>
-#include <boost/asio/post.hpp>
+#include <boost/asio/spawn.hpp>
+#include <boost/asio/steady_timer.hpp>
 
 #include <phosphor-logging/lg2.hpp>
 #include <unordered_map>
@@ -164,7 +164,8 @@ class SequenceMCUHandler {
         SMBUSManager& sequence_smbus_instance_;
         SequenceMcuContext seq_mcu_ctx_;
 
-        boost::asio::steady_timer _poll_timer_;
+        boost::asio::steady_timer poll_timer_;
+        bool stop_dbus_refresh_;
 
         // TODO: Atomic variable that will stop fired commands when a new one comes in
         //       if execution flow overlaps

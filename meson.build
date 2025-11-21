@@ -13,4 +13,7 @@ sdbusplus = dependency('sdbusplus')
 phosphor_dbus_interfaces = dependency('phosphor-dbus-interfaces')
 phosphor_logging = dependency('phosphor-logging')
 
+boost_coroutine = dependency('boost', modules: ['coroutine'])
+
+
 subdir('src')

@@ -52,7 +52,5 @@ int main(int argc, char* argv[]) {
 
     seq_mcu_comm_handler.StartPolling();
 
-    seq_mcu_comm_handler.PollCacheAndDbusEventManagement(io);
-
     io.run();
 }
