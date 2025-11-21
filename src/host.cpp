@@ -49,8 +49,9 @@ static Host::RestartCause toRestartCause(TransitionCause raw) {
 Host::Host(std::shared_ptr<sdbusplus::asio::connection> conn, const std::string& node, SequenceMCUHandler& seq_mcu_comm_handler)
     : ObjectServer(*conn, getPath(node).c_str(), Host::default_service, node), node_(node), seq_mcu_comm_handler_(seq_mcu_comm_handler)
 {
-    //TODO
-    // seq_mcu_comm_handler_.RegisterNotification(this->MCUUpdateHandler)
+    // TODO
+    // Register Event listener here:
+    // seq_mcu_comm_handler_.listener_handlers.push_back(EVENT_FUNC);
     determineInitialState();
 
     // TODO(BMC-15): For Titanium and Tacton SMBus communication to the sequence MCU is isolated below S0
