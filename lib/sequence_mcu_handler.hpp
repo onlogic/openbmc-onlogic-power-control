@@ -41,8 +41,8 @@
 #include <utility> // std::pair, std::to_underlying
 #include <vector>
 
-// #include <xyz/openbmc_project/State/Host/common.hpp>
-// #include <xyz/openbmc_project/State/Chassis/common.hpp>
+#include <boost/asio/thread_pool.hpp>
+#include <boost/asio/post.hpp>
 
 #include <phosphor-logging/lg2.hpp>
 #include <unordered_map>
@@ -102,41 +102,38 @@ enum class McuPowerState : uint8_t {
 };
 
 enum class PowerEvent : uint8_t {
-    kPowerEvent_Awake                      = 0x00,
-    kPowerEvent_HardReset                  = 0x01,
-    kPowerEvent_SoftOff                    = 0x02,
-    kPowerEvent_HardOff                    = 0x03,
-    kPowerEvent_Unknown                    = 0xFF,
+    kPowerEvent_Awake                       = 0x00,
+    kPowerEvent_HardReset                   = 0x01,
+    kPowerEvent_SoftOff                     = 0x02,
+    kPowerEvent_HardOff                     = 0x03,
+    kPowerEvent_Unknown                     = 0xFF,
 };
 
 enum class SMBUSOperationStatus : uint8_t {
-    kSMBUSOperationStatus_Success          = 0x00,
-    kSMBUSOperationStatus_ProtocolError    = 0x01,
-    kSMBUSOperationStatus_InvalidCommand   = 0x02,
-    kSMBUSOperationStatus_InvalidRetries   = 0x02,
-    kSMBUSOperationStatus_Undefined        = 0xFF,
+    kSMBUSOperationStatus_Success           = 0x00,
+    kSMBUSOperationStatus_ProtocolError     = 0x01,
+    kSMBUSOperationStatus_InvalidCommand    = 0x02,
+    kSMBUSOperationStatus_InvalidRetries    = 0x02,
+    kSMBUSOperationStatus_Undefined         = 0xFF,
 };
 
 enum class SMBUSCapability : uint8_t {
-  kSmbusCapabilities_Unisolated            = 0x00,
-  kSmbusCapabilities_Isolated              = 0x01,
-  kSmbusCapabilities_Unknown               = 0xFF,
+  kSmbusCapabilities_Unisolated             = 0x00,
+  kSmbusCapabilities_Isolated               = 0x01,
+  kSmbusCapabilities_Unknown                = 0xFF,
 };
 
 class SequenceMCUHandler {
     public:
-        // using Host = sdbusplus::common::xyz::openbmc_project::state::Host;
-        // using Chassis = sdbusplus::common::xyz::openbmc_project::state::Chassis;
+        SequenceMCUHandler(SMBUSManager& smbus_init,
+                           boost::asio::io_context& io);
 
-        // https://google.github.io/styleguide/cppguide.html#Implicit_Conversions
-        explicit SequenceMCUHandler(SMBUSManager& smbus_init) :
-            sequence_smbus_instance_(smbus_init),
-            seq_mcu_ctx_(InitSequenceMcuContext()) {}
-
-        ~SequenceMCUHandler() {}
+        ~SequenceMCUHandler();
 
         std::vector<void(*)()> listener_handlers;
         void RegisterNotification(void (*listener_handler)());
+
+        void PollAction();
         void PollCacheAndDbusEventManagement(boost::asio::io_context& io);
         
         SMBUSOperationStatus IssueAwakeCmd(uint8_t retries = 3);
@@ -145,23 +142,13 @@ class SequenceMCUHandler {
         SMBUSOperationStatus IssueSoftShutdown(uint8_t retries = 3);
         SMBUSOperationStatus IssueHardShutdown(uint8_t retries = 3);
 
-        // Read Operations (Raw)
+        // Read Operations
         SMBUSOperationStatus GetMcuPowerState(McuPowerState& current_power_state);
         SMBUSOperationStatus GetTransitionCause(TransitionCause& transition_cause);
         SMBUSOperationStatus GetCapability(SMBUSCapability& get_capability);
         
         // Helper for block reads
         SMBUSOperationStatus GetStateAndTransitionCause(std::pair<McuPowerState, TransitionCause>& state_cause_pair);
-
-        // SMBUSOperationStatus GetPowerState(Host::HostState& current_power_state);
-        // SMBUSOperationStatus GetTransitionCause(Host::RestartCause& transition_cause);
-        // SMBUSOperationStatus GetStateAndTransitionCause(std::pair<Host::HostState, Host::RestartCause>& gst_pair);
-
-        // Chassis Operations
-        // SMBUSOperationStatus GetChassisPowerState(Chassis::PowerState& current_power_state);
-        // SMBUSOperationStatus GetChassisPowerStatus(Chassis::PowerStatus& power_status);
-        // SMBUSOperationStatus GetChassisStateAndPowerStatus(std::pair<Chassis::PowerState, Chassis::PowerStatus>& state_status_pair);
-
 
         inline SMBUSCapability GetSMBUSCapabilityCache() { return seq_mcu_ctx_.capabilities; };
         inline McuPowerState GetMcuPowerStateCache() { return seq_mcu_ctx_.power_state; };
@@ -174,16 +161,16 @@ class SequenceMCUHandler {
             TransitionCause transition_cause;
         };
 
-        // TODO: make sure two threads don't access ioctl at same time during smbus writes
-        // std::mutex ioctl_lock{}; // ioctl_lock.load(); ioctl_lock.exchange(false); 
-        
-        // TODO: Atomic variable that will stop fired commands when a new one comes in
-        //       if execution flow overlaps
-        // std::atomic<bool> should_stop{false};
-
     private:
         SMBUSManager& sequence_smbus_instance_;
         SequenceMcuContext seq_mcu_ctx_;
+
+        boost::asio::steady_timer cache_poll_timer_;
+
+        
+        // TODO: Atomic variable that will stop fired commands when a new one comes in
+        //       if execution flow overlaps
+        // std::atomic<bool> stop_write_operation_{true};
 
         inline SequenceMcuContext InitSequenceMcuContext(void) {
             SequenceMcuContext init_return = {

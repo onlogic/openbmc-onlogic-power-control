@@ -35,21 +35,22 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
+    boost::asio::io_context io;
+
     SMBUSManager smbus_manager("/dev/i2c-1", 
         std::to_underlying(SlaveAddressTable::kSlaveAddress_SequenceMCU));
 
     smbus_manager.InitSMBUSManager();
 
-    SequenceMCUHandler seq_mcu_comm_handler(smbus_manager);
+    SequenceMCUHandler seq_mcu_comm_handler(smbus_manager, io);
 
-    boost::asio::io_context io;
     auto conn = std::make_shared<sdbusplus::asio::connection>(io);
 
     Power power0(conn, node);
     Host host0(conn, node, seq_mcu_comm_handler);
     Chassis chassis0(conn, node, seq_mcu_comm_handler);
 
-    // seq_mcu_comm_handler.PollCacheAndDbusEventManagement(io);
+    seq_mcu_comm_handler.PollCacheAndDbusEventManagement(io);
 
     io.run();
 }
