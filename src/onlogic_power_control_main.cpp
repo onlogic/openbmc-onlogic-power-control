@@ -50,6 +50,8 @@ int main(int argc, char* argv[]) {
     Host host0(conn, node, seq_mcu_comm_handler);
     Chassis chassis0(conn, node, seq_mcu_comm_handler);
 
+    seq_mcu_comm_handler.StartPolling();
+
     seq_mcu_comm_handler.PollCacheAndDbusEventManagement(io);
 
     io.run();

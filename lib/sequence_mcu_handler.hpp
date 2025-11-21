@@ -133,8 +133,7 @@ class SequenceMCUHandler {
         std::vector<void(*)()> listener_handlers;
         void RegisterNotification(void (*listener_handler)());
 
-        void PollAction();
-        void PollCacheAndDbusEventManagement(boost::asio::io_context& io);
+        void StartPolling();
         
         SMBUSOperationStatus IssueAwakeCmd(uint8_t retries = 3);
         SMBUSOperationStatus IssueSoftReset(uint8_t retries = 3);
@@ -165,9 +164,8 @@ class SequenceMCUHandler {
         SMBUSManager& sequence_smbus_instance_;
         SequenceMcuContext seq_mcu_ctx_;
 
-        boost::asio::steady_timer cache_poll_timer_;
+        boost::asio::steady_timer _poll_timer_;
 
-        
         // TODO: Atomic variable that will stop fired commands when a new one comes in
         //       if execution flow overlaps
         // std::atomic<bool> stop_write_operation_{true};
@@ -180,6 +178,6 @@ class SequenceMCUHandler {
             };
 
             return init_return;
-        };
+    };
 };
 

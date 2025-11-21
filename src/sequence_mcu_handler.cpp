@@ -2,16 +2,16 @@
 #include <iostream>
 // ---------------------------------------------------------------------------------------------- //
 
-SequenceMCUHandler::SequenceMCUHandler(SMBUSManager& smbus_init) :
+SequenceMCUHandler::SequenceMCUHandler(SMBUSManager& smbus_init,
+                                       boost::asio::io_context io;) :
     sequence_smbus_instance_(smbus_init),
     seq_mcu_ctx_(InitSequenceMcuContext()),
-    stop_dbus_refresh_(false) {}
+    poll_timer_(io),
+    stop_dbus_refresh_(false),
+    {}
 
 SequenceMCUHandler::~SequenceMCUHandler() {
     stop_dbus_refresh_ = false;
-
-    mcu_manager_worker_pool_.stop();
-    mcu_manager_worker_pool_.join();
 }
 
 SMBUSOperationStatus SequenceMCUHandler::IssueAwakeCmd(uint8_t retries) {
@@ -133,42 +133,40 @@ void SequenceMCUHandler::RegisterNotification(void (*listener_handler)()) {
     listener_handlers.push_back(listener_handler);
 }
 
-void SequenceMCUHandler::PollAction() {
-    McuPowerState last_power_state = power_state;
-    TransitionCause last_power_state = transition_cause;
+void SequenceMCUHandler::StartPolling() {
+    boost::asio::spawn(poll_timer_.get_executor(), [this](boost::asio::yield_context yield) {
+        McuPowerState last_power_state = power_state;
+        TransitionCause last_cause = transition_cause;
 
-    while (!stop_dbus_refresh_) {
-        
-        std::cout << std::to_underlying(power_state) << std::endl;
-        std::cout << std::to_underlying(transition_cause) << std::endl;
+        while (!this->stop_dbus_refresh_) {
 
-        #ifdef CACHE_CHANGE_LOGIC
-        if (last_power_state != power_state ||
-            last_power_state != transition_cause) {
-            
-            for (const auto& event_listener: listener_handlers)
-                if (event_listener)
-                    event_listener();
+            McuPowerState current_state = power_state;
+            TransitionCause current_cause = transition_cause;
+
+            std::cout << std::to_underlying(current_state) << std::endl;
+            std::cout << std::to_underlying(current_cause) << std::endl;
+
+            #ifdef CACHE_CHANGE_LOGIC
+            if (last_power_state != current_state || last_cause != current_cause) {
+                
+                for (const auto& event_listener : this->listener_handlers) {
+                    if (event_listener) event_listener();
+                }
+
+                last_power_state = current_state;
+                last_cause = current_cause;
             }
+            #endif
 
-            last_power_state = power_state;
-            last_power_state = transition_cause;
-        #endif
-        
-        std::this_thread::sleep_for(1000ms);
-    }
-}
+            this->poll_timer_.expires_after(std::chrono::seconds(1));
 
-void SequenceMCUHandler::PollCacheAndDbusEventManagement(boost::asio::io_context& io) {
-    if (stop_dbus_refresh_) {
-        return;
-    }
+            boost::system::error_code ec;
+            this->poll_timer_.async_wait(yield[ec]);
 
-    info("Start State Poll Thread");
-    boost::asio::post(io, [this]() {
-        this->PollAction();
+            // If cancelled, break loop
+            if (ec == boost::asio::error::operation_aborted) break;
+        }
     });
-    info("Stopping State Poll Thread Action");
 }
 
 SMBUSOperationStatus SequenceMCUHandler::GetMcuPowerState(McuPowerState& current_power_state) {

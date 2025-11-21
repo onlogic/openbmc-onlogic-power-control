@@ -18,13 +18,6 @@ public:
 
     Host(std::shared_ptr<sdbusplus::asio::connection> conn, const std::string& node, SequenceMCUHandler& seq_mcu_comm_handler);
 
-    // TODO
-    // void MCUUpdateHandler() {
-    //     seq_mcu_comm_handler_.GetPowerState()
-    //     // do mapping
-    //     // do setting of base class values
-    // }
-
     /// @brief Sets the requested host transition
     /// @param value - Can be one of Off, On, Reboot, GracefulWarmReboot, ForceWarmReboot
     /// @return - The updated requested host transition
