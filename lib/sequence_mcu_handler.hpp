@@ -165,7 +165,7 @@ class SequenceMCUHandler {
         SequenceMcuContext seq_mcu_ctx_;
 
         boost::asio::steady_timer poll_timer_;
-        bool stop_dbus_refresh_;
+        bool stop_dbus_refresh_{false};
 
         // TODO: Atomic variable that will stop fired commands when a new one comes in
         //       if execution flow overlaps
