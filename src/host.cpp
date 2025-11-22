@@ -171,5 +171,5 @@ void Host::determineInitialState()
         type_to_init = Transition::Off;
     }
 
-    requestedHostTransition(type_to_init);
+    sdbusplus::server::xyz::openbmc_project::state::Host::requestedHostTransition(type_to_init);
 }
