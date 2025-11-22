@@ -134,21 +134,27 @@ void SequenceMCUHandler::RegisterNotification(void (*listener_handler)()) {
 }
 
 void SequenceMCUHandler::StartPolling() {
+
+    std::cerr << "START POLLING CALLED" << std::endl;
+
     boost::asio::spawn(poll_timer_.get_executor(), [this](boost::asio::yield_context yield) {
+
+        std::cerr << "CREATED COROUTINE" << std::endl;
+
         #ifdef CACHE_CHANGE_LOGIC
         McuPowerState last_power_state = seq_mcu_ctx_.power_state;
         TransitionCause last_cause = seq_mcu_ctx_.transition_cause;
         #endif
-        
+
         while (!this->stop_dbus_refresh_) {
 
-            // std::cerr << "Poll Loop Power State: " 
-            //           << static_cast<int>(std::to_underlying(seq_mcu_ctx_.power_state)) 
-            //           << std::endl;
+            std::cerr << "Poll Loop Power State: " 
+                      << static_cast<int>(std::to_underlying(seq_mcu_ctx_.power_state)) 
+                      << std::endl;
 
-            // std::cerr << "Poll Loop Transition Cause: " 
-            //           << static_cast<int>(std::to_underlying(seq_mcu_ctx_.transition_cause)) 
-            //           << std::endl;
+            std::cerr << "Poll Loop Transition Cause: " 
+                      << static_cast<int>(std::to_underlying(seq_mcu_ctx_.transition_cause)) 
+                      << std::endl;
 
             #ifdef CACHE_CHANGE_LOGIC
             if (last_power_state != seq_mcu_ctx_.power_state || 
