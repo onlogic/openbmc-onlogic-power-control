@@ -81,23 +81,47 @@ SMBUSOperationStatus SequenceMCUHandler::IssueHardReset(uint8_t retries) {
     return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
 }
 
-SMBUSOperationStatus SequenceMCUHandler::IssueSoftShutdown(uint8_t retries) {
+SMBUSOperationStatus SequenceMCUHandler::IssueSoftReset(uint8_t retries) {
+    info("SMBUS_MANAGER :: IssueSoftReset started. Retries: {RETRIES}", "RETRIES", retries);
+
     if (!retries) {
+        error("SMBUS_MANAGER :: IssueSoftReset failed: Invalid retries: {RETRIES}", "RETRIES", retries);
         return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidRetries;
     }
 
-    int operation_status;
+    SMBUSOperationStatus operation_status;
+    
+    // Soft Shutdown
     for (uint8_t attempt = 0; attempt < retries; ++attempt) {
-        operation_status = 
-            sequence_smbus_instance_.SmbusWriteByte(std::to_underlying(CommandCode::SetPowerState), 
-                                                    std::to_underlying(PowerEvent::kPowerEvent_SoftOff));
-        if (operation_status < 0) {
-            std::this_thread::sleep_for(1000ms);
-            continue;
+        operation_status = IssueSoftShutdown();
+        
+        if (operation_status != SMBUSOperationStatus::kSMBUSOperationStatus_Success) {
+            error("SMBUS_MANAGER :: SoftShutdown failed on attempt {ATTEMPT}. Status: {STATUS}", 
+                  "ATTEMPT", attempt + 1, 
+                  "STATUS", static_cast<int>(operation_status));
+            return operation_status;
         }
+        std::this_thread::sleep_for(500ms);
     }
 
-    return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
+    info("SMBUS_MANAGER :: SoftShutdown commands sent. Waiting 5000ms for device reset.");
+    std::this_thread::sleep_for(5000ms);
+
+    // Awake
+    for (uint8_t attempt = 0; attempt < retries; ++attempt) {
+        operation_status = IssueAwakeCmd();
+        
+        if (operation_status != SMBUSOperationStatus::kSMBUSOperationStatus_Success) {
+            error("SMBUS_MANAGER :: AwakeCmd failed on attempt {ATTEMPT}. Status: {STATUS}", 
+                  "ATTEMPT", attempt + 1, 
+                  "STATUS", static_cast<int>(operation_status));
+            return operation_status;
+        }
+        std::this_thread::sleep_for(500ms);
+    }
+
+    info("SMBUS_MANAGER :: IssueSoftReset completed successfully.");
+    return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
 }
 
 SMBUSOperationStatus SequenceMCUHandler::IssueHardShutdown(uint8_t retries) {
