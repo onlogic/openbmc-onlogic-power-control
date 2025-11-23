@@ -29,7 +29,7 @@ SMBUSOperationStatus SequenceMCUHandler::IssueAwakeCmd(uint8_t retries) {
             sequence_smbus_instance_.SmbusWriteByte(std::to_underlying(CommandCode::SetPowerState), 
                                                     std::to_underlying(PowerEvent::kPowerEvent_Awake));
         if (operation_status < 0) {
-            error("SequenceMCUHandler :: IssueAwakeCmd failed: Retry Attempt: {RETRIES}", "RETRIES", retries + 1);
+            error("SequenceMCUHandler :: IssueAwakeCmd failed: Retry Attempt: {ATTEMPT}", "ATTEMPT", attempt + 1);
             std::this_thread::sleep_for(1000ms);
             continue;
         } else {
@@ -101,7 +101,7 @@ SMBUSOperationStatus SequenceMCUHandler::IssueHardReset(uint8_t retries) {
             sequence_smbus_instance_.SmbusWriteByte(std::to_underlying(CommandCode::SetPowerState), 
                                                     std::to_underlying(PowerEvent::kPowerEvent_HardReset));
         if (operation_status < 0) {
-            error("SequenceMCUHandler :: IssueHardReset failed: Retry Attempt: {RETRIES}", "RETRIES", attempt + 1);
+            error("SequenceMCUHandler :: IssueHardReset failed: Retry Attempt: {ATTEMPT}", "ATTEMPT", attempt + 1);
             std::this_thread::sleep_for(1000ms);
             continue;
         } else {
@@ -155,7 +155,7 @@ SMBUSOperationStatus SequenceMCUHandler::IssueHardShutdown(uint8_t retries) {
             = sequence_smbus_instance_.SmbusWriteByte(std::to_underlying(CommandCode::SetPowerState), 
                                                       std::to_underlying(PowerEvent::kPowerEvent_HardOff));
         if (operation_status < 0) {
-            error("SequenceMCUHandler :: IssueHardShutdown failed: Retry Attempt: {RETRIES}", "RETRIES", attempt + 1);
+            error("SequenceMCUHandler :: IssueHardShutdown failed: Retry Attempt: {ATTEMPT}", "ATTEMPT", attempt + 1);
             std::this_thread::sleep_for(1000ms);
             continue;
         } else {

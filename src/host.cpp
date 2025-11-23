@@ -52,6 +52,7 @@ Host::Host(std::shared_ptr<sdbusplus::asio::connection> conn, const std::string&
     // TODO/noop hook
     // Register Event listener here:
     // seq_mcu_comm_handler_.listener_handlers.push_back(EVENT_FUNC);
+
     determineInitialState();
 
     // TODO(BMC-15): For Titanium and Tacton SMBus communication to the sequence MCU is isolated below S0
