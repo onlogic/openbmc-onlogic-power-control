@@ -82,8 +82,9 @@ static Chassis::PowerStatus toPowerStatus(TransitionCause raw) {
 Chassis::Chassis(std::shared_ptr<sdbusplus::asio::connection> conn, const std::string& node, SequenceMCUHandler& seq_mcu_comm_handler)
     : ObjectServer(*conn, getPath(node).c_str(), Chassis::default_service, node), node(node), seq_mcu_comm_handler_(seq_mcu_comm_handler)
 {
-    // TODO
-    // Register Event listener here
+    // TODO/noop hook
+    // Register Event listener here:
+    // seq_mcu_comm_handler_.listener_handlers.push_back(EVENT_FUNC);
 
     determineInitialState();
 }
