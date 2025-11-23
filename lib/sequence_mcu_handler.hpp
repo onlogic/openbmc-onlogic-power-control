@@ -30,6 +30,10 @@
  *      i2cset -y 1 0x40 0x04 0x02 b
  *      i2cset -y 1 0x40 0x04 0x03 b
  *      i2cset -y 1 0x40 0x04 0x00 b
+ *   
+ *  Note: 
+ *      Mappings from SMBUS datatypes to DBUS interfaces are 
+ *      contained within chassis.cpp and host.cpp
  */
 
 #pragma once
@@ -132,27 +136,93 @@ class SequenceMCUHandler {
         ~SequenceMCUHandler();
 
         std::vector<void(*)()> listener_handlers;
-        void RegisterNotification(void (*listener_handler)());
+    /**
+     * @brief Register a notification listener for MCU events.
+     * @param listener_handler Function pointer to the event handler.
+     * @return void
+     */
+    void RegisterNotification(void (*listener_handler)());
 
-        void StartPolling();
+    /**
+     * @brief Start polling the MCU for state changes and events.
+     * @return void
+     */
+    void StartPolling();
         
-        SMBUSOperationStatus IssueAwakeCmd(uint8_t retries = 3);
-        SMBUSOperationStatus IssueSoftReset(uint8_t retries = 3);
-        SMBUSOperationStatus IssueHardReset(uint8_t retries = 3);
-        SMBUSOperationStatus IssueSoftShutdown(uint8_t retries = 3);
-        SMBUSOperationStatus IssueHardShutdown(uint8_t retries = 3);
+    /**
+     * @brief Issue an Awake command to the MCU via SMBus.
+     * @param retries Number of retry attempts for the command.
+     * @return SMBUSOperationStatus indicating success or error type.
+     */
+    SMBUSOperationStatus IssueAwakeCmd(uint8_t retries = 3);
+    /**
+     * @brief Issue a Soft Reset sequence to the MCU via SMBus.
+     * @param retries Number of retry attempts for the command.
+     * @return SMBUSOperationStatus indicating success or error type.
+     */
+    SMBUSOperationStatus IssueSoftReset(uint8_t retries = 3);
+    /**
+     * @brief Issue a Hard Reset command to the MCU via SMBus.
+     * @param retries Number of retry attempts for the command.
+     * @return SMBUSOperationStatus indicating success or error type.
+     */
+    SMBUSOperationStatus IssueHardReset(uint8_t retries = 3);
+    /**
+     * @brief Issue a Soft Shutdown command to the MCU via SMBus.
+     * @param retries Number of retry attempts for the command.
+     * @return SMBUSOperationStatus indicating success or error type.
+     */
+    SMBUSOperationStatus IssueSoftShutdown(uint8_t retries = 3);
+    /**
+     * @brief Issue a Hard Shutdown command to the MCU via SMBus.
+     * @param retries Number of retry attempts for the command.
+     * @return SMBUSOperationStatus indicating success or error type.
+     */
+    SMBUSOperationStatus IssueHardShutdown(uint8_t retries = 3);
 
         // Read Operations
-        SMBUSOperationStatus GetMcuPowerState(McuPowerState& current_power_state);
-        SMBUSOperationStatus GetTransitionCause(TransitionCause& transition_cause);
-        SMBUSOperationStatus GetCapability(SMBUSCapability& get_capability);
+    /**
+     * @brief Read the current MCU power state from SMBus.
+     * @param current_power_state Reference to store the read power state.
+     * @return SMBUSOperationStatus indicating success or error type.
+     */
+    SMBUSOperationStatus GetMcuPowerState(McuPowerState& current_power_state);
+    /**
+     * @brief Read the last transition cause from the MCU via SMBus.
+     * @param transition_cause Reference to store the read transition cause.
+     * @return SMBUSOperationStatus indicating success or error type.
+     */
+    SMBUSOperationStatus GetTransitionCause(TransitionCause& transition_cause);
+    /**
+     * @brief Read the SMBus capability from the MCU.
+     * @param get_capability Reference to store the read capability.
+     * @return SMBUSOperationStatus indicating success or error type.
+     */
+    SMBUSOperationStatus GetCapability(SMBUSCapability& get_capability);
         
         // Helper for block reads
-        SMBUSOperationStatus GetStateAndTransitionCause(std::pair<McuPowerState, TransitionCause>& state_cause_pair);
+    /**
+     * @brief Read both the MCU power state and transition cause in a single SMBus transaction.
+     * @param state_cause_pair Reference to store the read state and cause as a pair.
+     * @return SMBUSOperationStatus indicating success or error type.
+     */
+    SMBUSOperationStatus GetStateAndTransitionCause(std::pair<McuPowerState, TransitionCause>& state_cause_pair);
 
-        inline SMBUSCapability GetSMBUSCapabilityCache() { return seq_mcu_ctx_.capabilities; };
-        inline McuPowerState GetMcuPowerStateCache() { return seq_mcu_ctx_.power_state; };
-        inline TransitionCause GetTransitionCauseCache() { return seq_mcu_ctx_.transition_cause; };
+    /**
+     * @brief Get the cached SMBus capability value.
+     * @return SMBUSCapability Cached capability value.
+     */
+    inline SMBUSCapability GetSMBUSCapabilityCache() { return seq_mcu_ctx_.capabilities; };
+    /**
+     * @brief Get the cached MCU power state value.
+     * @return McuPowerState Cached power state value.
+     */
+    inline McuPowerState GetMcuPowerStateCache() { return seq_mcu_ctx_.power_state; };
+    /**
+     * @brief Get the cached transition cause value.
+     * @return TransitionCause Cached transition cause value.
+     */
+    inline TransitionCause GetTransitionCauseCache() { return seq_mcu_ctx_.transition_cause; };
 
         // Cache of important operational details
         struct SequenceMcuContext {
@@ -168,7 +238,13 @@ class SequenceMCUHandler {
         boost::asio::steady_timer poll_timer_;
         bool stop_dbus_refresh_{false};
 
-        void RunPollLoop(McuPowerState last_state, TransitionCause last_cause);
+    /**
+     * @brief Internal: Run the polling loop for MCU state and transition cause.
+     * @param last_state Last known MCU power state.
+     * @param last_cause Last known transition cause.
+     * @return void
+     */
+    void RunPollLoop(McuPowerState last_state, TransitionCause last_cause);
 
         // TODO: Atomic variable that will stop fired commands when a new one comes in
         //       if execution flow overlaps

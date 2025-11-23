@@ -16,42 +16,48 @@ SequenceMCUHandler::~SequenceMCUHandler() {
 }
 
 SMBUSOperationStatus SequenceMCUHandler::IssueAwakeCmd(uint8_t retries) {
+    info("SequenceMCUHandler :: IssueAwakeCmd started. Retries: {RETRIES}", "RETRIES", retries);
+
     if (!retries) {
+        error("SequenceMCUHandler :: IssueAwakeCmd failed: Invalid retries: {RETRIES}", "RETRIES", retries);
         return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidRetries;
     }
-    // primative smbus interface to issue awake command
+    // use primative smbus interface to issue awake command
     int operation_status;
     for (uint8_t attempt = 0; attempt < retries; ++attempt) {
         operation_status = 
             sequence_smbus_instance_.SmbusWriteByte(std::to_underlying(CommandCode::SetPowerState), 
                                                     std::to_underlying(PowerEvent::kPowerEvent_Awake));
         if (operation_status < 0) {
+            error("SequenceMCUHandler :: IssueAwakeCmd failed: Retry Attempt: {RETRIES}", "RETRIES", retries + 1);
             std::this_thread::sleep_for(1000ms);
             continue;
         } else {
+            info("SequenceMCUHandler :: IssueAwakeCmd command sent.");
             return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
         }
     }
 
+    info("SequenceMCUHandler :: IssueAwakeCmd command Failed.");
     return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
 }
 
 SMBUSOperationStatus SequenceMCUHandler::IssueSoftReset(uint8_t retries) {
-    info("SMBUS_MANAGER :: IssueSoftReset started. Retries: {RETRIES}", "RETRIES", retries);
+    info("SequenceMCUHandler :: IssueSoftReset started. Retries: {RETRIES}", "RETRIES", retries);
 
     if (!retries) {
-        error("SMBUS_MANAGER :: IssueSoftReset failed: Invalid retries: {RETRIES}", "RETRIES", retries);
+        error("SequenceMCUHandler :: IssueSoftReset failed: Invalid retries: {RETRIES}", "RETRIES", retries);
         return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidRetries;
     }
 
     SMBUSOperationStatus operation_status;
-    
+    debug("SequenceMCUHandler :: Beginning Shutdown");
     // Soft Shutdown
     for (uint8_t attempt = 0; attempt < retries; ++attempt) {
         operation_status = IssueSoftShutdown();
         
         if (operation_status != SMBUSOperationStatus::kSMBUSOperationStatus_Success) {
-            error("SMBUS_MANAGER :: SoftShutdown failed on attempt {ATTEMPT}. Status: {STATUS}", 
+            error("SequenceMCUHandler :: SoftShutdown failed on attempt {ATTEMPT}. Status: {STATUS}", 
                   "ATTEMPT", attempt + 1, 
                   "STATUS", static_cast<int>(operation_status));
             return operation_status;
@@ -59,15 +65,16 @@ SMBUSOperationStatus SequenceMCUHandler::IssueSoftReset(uint8_t retries) {
         std::this_thread::sleep_for(500ms);
     }
 
-    info("SMBUS_MANAGER :: SoftShutdown commands sent. Waiting 5000ms for device reset.");
+    info("SequenceMCUHandler :: SoftShutdown commands sent. Waiting 5000ms for device reset.");
     std::this_thread::sleep_for(5000ms);
 
     // Awake
+    debug("SequenceMCUHandler :: Beginning Awake");
     for (uint8_t attempt = 0; attempt < retries; ++attempt) {
         operation_status = IssueAwakeCmd();
         
         if (operation_status != SMBUSOperationStatus::kSMBUSOperationStatus_Success) {
-            error("SMBUS_MANAGER :: AwakeCmd failed on attempt {ATTEMPT}. Status: {STATUS}", 
+            error("SequenceMCUHandler :: AwakeCmd failed on attempt {ATTEMPT}. Status: {STATUS}", 
                   "ATTEMPT", attempt + 1, 
                   "STATUS", static_cast<int>(operation_status));
             return operation_status;
@@ -75,12 +82,15 @@ SMBUSOperationStatus SequenceMCUHandler::IssueSoftReset(uint8_t retries) {
         std::this_thread::sleep_for(500ms);
     }
 
-    info("SMBUS_MANAGER :: IssueSoftReset completed");
+    info("SequenceMCUHandler :: IssueSoftReset completed");
     return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
 }
 
 SMBUSOperationStatus SequenceMCUHandler::IssueHardReset(uint8_t retries) {
+    info("SequenceMCUHandler :: IssueHardReset started. Retries: {RETRIES}", "RETRIES", retries);
+
     if (!retries) {
+        error("SequenceMCUHandler :: IssueHardReset failed: Invalid retries: {RETRIES}", "RETRIES", retries);
         return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidRetries;
     }
 
@@ -91,18 +101,24 @@ SMBUSOperationStatus SequenceMCUHandler::IssueHardReset(uint8_t retries) {
             sequence_smbus_instance_.SmbusWriteByte(std::to_underlying(CommandCode::SetPowerState), 
                                                     std::to_underlying(PowerEvent::kPowerEvent_HardReset));
         if (operation_status < 0) {
+            error("SequenceMCUHandler :: IssueHardReset failed: Retry Attempt: {RETRIES}", "RETRIES", attempt + 1);
             std::this_thread::sleep_for(1000ms);
             continue;
         } else {
+            info("SequenceMCUHandler :: IssueHardReset command sent.");
             return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
         }
     }
 
+    info("SequenceMCUHandler :: IssueHardReset command Failed.");
     return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
 }
 
 SMBUSOperationStatus SequenceMCUHandler::IssueSoftShutdown(uint8_t retries) {
+    info("SequenceMCUHandler :: IssueSoftShutdown started. Retries: {RETRIES}", "RETRIES", retries);
+
     if (!retries) {
+        error("SequenceMCUHandler :: IssueSoftShutdown failed: Invalid retries: {RETRIES}", "RETRIES", retries);
         return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidRetries;
     }
 
@@ -112,18 +128,24 @@ SMBUSOperationStatus SequenceMCUHandler::IssueSoftShutdown(uint8_t retries) {
             = sequence_smbus_instance_.SmbusWriteByte(std::to_underlying(CommandCode::SetPowerState),
                                                       std::to_underlying(PowerEvent::kPowerEvent_SoftOff));
         if (operation_status < 0) {
+            error("SequenceMCUHandler :: IssueSoftShutdown failed: Retry Attempt: {RETRIES}", "RETRIES", attempt + 1);
             std::this_thread::sleep_for(1000ms);
             continue;
         } else {
+            info("SequenceMCUHandler :: IssueSoftShutdown command sent.");
             return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
         }
     }
 
+    info("SequenceMCUHandler :: IssueSoftShutdown command Failed.");
     return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
 }
 
 SMBUSOperationStatus SequenceMCUHandler::IssueHardShutdown(uint8_t retries) {
+    info("SequenceMCUHandler :: IssueHardShutdown started. Retries: {RETRIES}", "RETRIES", retries);
+
     if (!retries) {
+        error("SequenceMCUHandler :: IssueHardShutdown failed: Invalid retries: {RETRIES}", "RETRIES", retries);
         return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidRetries;
     }
 
@@ -133,13 +155,16 @@ SMBUSOperationStatus SequenceMCUHandler::IssueHardShutdown(uint8_t retries) {
             = sequence_smbus_instance_.SmbusWriteByte(std::to_underlying(CommandCode::SetPowerState), 
                                                       std::to_underlying(PowerEvent::kPowerEvent_HardOff));
         if (operation_status < 0) {
+            error("SequenceMCUHandler :: IssueHardShutdown failed: Retry Attempt: {RETRIES}", "RETRIES", attempt + 1);
             std::this_thread::sleep_for(1000ms);
             continue;
         } else {
+            info("SequenceMCUHandler :: IssueHardShutdown command sent.");
             return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
         }
     }
 
+    info("SequenceMCUHandler :: IssueHardShutdown command Failed.");
     return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
 }
 
@@ -155,7 +180,9 @@ void SequenceMCUHandler::RegisterNotification(void (*listener_handler)()) {
     listener_handlers.push_back(listener_handler);
 }
 
-/*
+#ifdef USE_COROUTINE
+// Keep this for reference in case async recursive callback does not work.
+// TBH, I'd recommend doing it like this, more standard, but the BMC environment is rejecting it.
 void SequenceMCUHandler::StartPolling() {
 
     std::cerr << "START POLLING CALLED" << std::endl;
@@ -202,10 +229,10 @@ void SequenceMCUHandler::StartPolling() {
         }
     });
 }
-*/
+#endif
 
 void SequenceMCUHandler::StartPolling() {
-    std::cerr << "START POLLING CALLED" << std::endl;
+    info("SequenceMCUHandler :: Begin Polling State Cache"); 
     
     RunPollLoop(seq_mcu_ctx_.power_state, seq_mcu_ctx_.transition_cause);
 }
@@ -215,16 +242,15 @@ void SequenceMCUHandler::RunPollLoop(McuPowerState last_state, TransitionCause l
         return;
     }
 
+    // Update current state using cached variable
     McuPowerState current_state = seq_mcu_ctx_.power_state;
     TransitionCause current_cause = seq_mcu_ctx_.transition_cause;
 
-    std::cerr << "Poll Loop Power State: " 
-              << static_cast<int>(std::to_underlying(current_state)) 
-              << std::endl;
-              
-    std::cerr << "Poll Loop Transition Cause: " 
-              << static_cast<int>(std::to_underlying(current_cause)) 
-              << std::endl;
+    info("SequenceMCUHandler :: Poll Loop Power State: {STATE}", "STATE", 
+        static_cast<int>(std::to_underlying(current_state)));
+    
+    info("SequenceMCUHandler :: Poll Loop Transition Cause: {CAUSE}", "CAUSE", 
+        static_cast<int>(std::to_underlying(current_cause)));
 
     #ifdef CACHE_CHANGE_LOGIC
     if (last_state != current_state || last_cause != current_cause) {
@@ -247,11 +273,13 @@ void SequenceMCUHandler::RunPollLoop(McuPowerState last_state, TransitionCause l
 }
 
 SMBUSOperationStatus SequenceMCUHandler::GetMcuPowerState(McuPowerState& current_power_state) {
+    info("SequenceMCUHandler :: GetMcuPowerState called");
     uint8_t output;
     int operation_status = sequence_smbus_instance_.SmbusSubaddressReadByte(
         std::to_underlying(CommandCode::GetPowerstate), &output);
 
     if (operation_status < 0) {
+        error("SequenceMCUHandler :: GetMcuPowerState failed: Protocol error");
         return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
     }
 
@@ -260,42 +288,55 @@ SMBUSOperationStatus SequenceMCUHandler::GetMcuPowerState(McuPowerState& current
     // Update Cache
     seq_mcu_ctx_.power_state = current_power_state;
 
+    info("SequenceMCUHandler :: GetMcuPowerState success. State: {STATE}", "STATE", static_cast<int>(current_power_state));
+
     return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
 }
 
 SMBUSOperationStatus SequenceMCUHandler::GetTransitionCause(TransitionCause& transition_cause) {
+    info("SequenceMCUHandler :: GetTransitionCause called");
     uint8_t output;
     int operation_status = sequence_smbus_instance_.SmbusSubaddressReadByte(
         std::to_underlying(CommandCode::GetTransitionCause), &output);
 
     if (operation_status < 0) {
+        error("SequenceMCUHandler :: GetTransitionCause failed: Protocol error");
         return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
     }
 
     transition_cause = static_cast<TransitionCause>(output);
 
+    // Update Cache
     seq_mcu_ctx_.transition_cause = transition_cause;
+
+    info("SequenceMCUHandler :: GetTransitionCause success. Cause: {CAUSE}", "CAUSE", static_cast<int>(transition_cause));
 
     return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
 }
 
 SMBUSOperationStatus SequenceMCUHandler::GetCapability(SMBUSCapability& get_capability) {
+    info("SequenceMCUHandler :: GetCapability called");
     uint8_t output;
     int operation_status = sequence_smbus_instance_.SmbusSubaddressReadByte(
         std::to_underlying(CommandCode::GetCapabilities), &output);
 
     if (operation_status < 0) {
+        error("SequenceMCUHandler :: GetCapability failed: Protocol error");
         return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
     }
 
     get_capability = static_cast<SMBUSCapability>(output);
 
+    // Update Cache
     seq_mcu_ctx_.capabilities = get_capability;
+
+    info("SequenceMCUHandler :: GetCapability success. Capability: {CAP}", "CAP", static_cast<int>(get_capability));
 
     return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
 }
 
 SMBUSOperationStatus SequenceMCUHandler::GetStateAndTransitionCause(std::pair<McuPowerState, TransitionCause>& state_cause_pair) {
+    info("SequenceMCUHandler :: GetStateAndTransitionCause called");
     uint8_t buf[STATE_AND_TCAUSE_SIZE];
     size_t size_read;
 
@@ -306,17 +347,23 @@ SMBUSOperationStatus SequenceMCUHandler::GetStateAndTransitionCause(std::pair<Mc
     );
 
     if (operation_status < 0) {
+        error("SequenceMCUHandler :: GetStateAndTransitionCause failed: Protocol error");
         return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
     }
 
     McuPowerState raw_state = static_cast<McuPowerState>(buf[0]);
     TransitionCause raw_cause = static_cast<TransitionCause>(buf[1]);
 
+    // Update Cache
     state_cause_pair.first = raw_state;
     state_cause_pair.second = raw_cause;
 
     seq_mcu_ctx_.power_state = raw_state;
     seq_mcu_ctx_.transition_cause = raw_cause;
+
+    info("SequenceMCUHandler :: GetStateAndTransitionCause success. State: {STATE}, Cause: {CAUSE}", "STATE", 
+        static_cast<int>(raw_state), 
+        "CAUSE", static_cast<int>(raw_cause));
 
     return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
 }

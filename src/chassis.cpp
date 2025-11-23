@@ -190,7 +190,7 @@ void Chassis::determineInitialState()
         type_to_init = Chassis::Transition::Off;
     }
 
-    //or requestedPowerTransition(type_to_init);?
+    // or requestedPowerTransition(type_to_init);?
     sdbusplus::server::xyz::openbmc_project::state::Chassis::requestedPowerTransition(type_to_init);
     lastStateChangeTime(getCurrentTimeMs());
 }
