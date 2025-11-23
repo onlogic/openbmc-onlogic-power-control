@@ -42,6 +42,7 @@
 #include <vector>
 
 #include <boost/asio/spawn.hpp>
+#include <boost/asio/io_context.hpp>
 #include <boost/asio/steady_timer.hpp>
 
 #include <phosphor-logging/lg2.hpp>
@@ -166,6 +167,8 @@ class SequenceMCUHandler {
 
         boost::asio::steady_timer poll_timer_;
         bool stop_dbus_refresh_{false};
+
+        void RunPollLoop(McuPowerState last_state, TransitionCause last_cause);
 
         // TODO: Atomic variable that will stop fired commands when a new one comes in
         //       if execution flow overlaps

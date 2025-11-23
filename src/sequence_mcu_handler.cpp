@@ -11,7 +11,8 @@ SequenceMCUHandler::SequenceMCUHandler(SMBUSManager& smbus_init,
     {}
 
 SequenceMCUHandler::~SequenceMCUHandler() {
-    stop_dbus_refresh_ = false;
+    stop_dbus_refresh_ = true;
+    poll_timer_.cancel();
 }
 
 SMBUSOperationStatus SequenceMCUHandler::IssueAwakeCmd(uint8_t retries) {
@@ -24,52 +25,6 @@ SMBUSOperationStatus SequenceMCUHandler::IssueAwakeCmd(uint8_t retries) {
         operation_status = 
             sequence_smbus_instance_.SmbusWriteByte(std::to_underlying(CommandCode::SetPowerState), 
                                                     std::to_underlying(PowerEvent::kPowerEvent_Awake));
-        if (operation_status < 0) {
-            std::this_thread::sleep_for(1000ms);
-            continue;
-        } else {
-            return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
-        }
-    }
-
-    return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
-}
-
-SMBUSOperationStatus SequenceMCUHandler::IssueSoftReset(uint8_t retries) {
-    if (!retries) {
-        return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidRetries;
-    }
-
-    SMBUSOperationStatus operation_status;
-    for (uint8_t attempt = 0; attempt < retries; ++attempt) {
-        operation_status = IssueSoftShutdown();
-        if (operation_status != SMBUSOperationStatus::kSMBUSOperationStatus_Success)
-            return operation_status;
-        std::this_thread::sleep_for(500ms);
-    }
-
-    std::this_thread::sleep_for(5000ms);
-
-    for (uint8_t attempt = 0; attempt < retries; ++attempt) {
-        operation_status = IssueAwakeCmd();
-        if (operation_status != SMBUSOperationStatus::kSMBUSOperationStatus_Success)
-            return operation_status;
-        std::this_thread::sleep_for(500ms);
-    }
-    return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
-}
-
-SMBUSOperationStatus SequenceMCUHandler::IssueHardReset(uint8_t retries) {
-    if (!retries) {
-        return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidRetries;
-    }
-
-    // primative smbus interface to issue Hard Reset command
-    int operation_status;
-    for(uint8_t attempt = 0; attempt < retries; ++attempt) {
-        operation_status = 
-            sequence_smbus_instance_.SmbusWriteByte(std::to_underlying(CommandCode::SetPowerState), 
-                                                    std::to_underlying(PowerEvent::kPowerEvent_HardReset));
         if (operation_status < 0) {
             std::this_thread::sleep_for(1000ms);
             continue;
@@ -120,8 +75,51 @@ SMBUSOperationStatus SequenceMCUHandler::IssueSoftReset(uint8_t retries) {
         std::this_thread::sleep_for(500ms);
     }
 
-    info("SMBUS_MANAGER :: IssueSoftReset completed successfully.");
+    info("SMBUS_MANAGER :: IssueSoftReset completed");
     return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
+}
+
+SMBUSOperationStatus SequenceMCUHandler::IssueHardReset(uint8_t retries) {
+    if (!retries) {
+        return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidRetries;
+    }
+
+    // primative smbus interface to issue Hard Reset command
+    int operation_status;
+    for(uint8_t attempt = 0; attempt < retries; ++attempt) {
+        operation_status = 
+            sequence_smbus_instance_.SmbusWriteByte(std::to_underlying(CommandCode::SetPowerState), 
+                                                    std::to_underlying(PowerEvent::kPowerEvent_HardReset));
+        if (operation_status < 0) {
+            std::this_thread::sleep_for(1000ms);
+            continue;
+        } else {
+            return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
+        }
+    }
+
+    return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
+}
+
+SMBUSOperationStatus SequenceMCUHandler::IssueSoftShutdown(uint8_t retries) {
+    if (!retries) {
+        return SMBUSOperationStatus::kSMBUSOperationStatus_InvalidRetries;
+    }
+
+    int operation_status;
+    for (uint8_t attempt = 0; attempt < retries; ++attempt) {
+        operation_status 
+            = sequence_smbus_instance_.SmbusWriteByte(std::to_underlying(CommandCode::SetPowerState),
+                                                      std::to_underlying(PowerEvent::kPowerEvent_SoftOff));
+        if (operation_status < 0) {
+            std::this_thread::sleep_for(1000ms);
+            continue;
+        } else {
+            return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
+        }
+    }
+
+    return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
 }
 
 SMBUSOperationStatus SequenceMCUHandler::IssueHardShutdown(uint8_t retries) {
@@ -157,6 +155,7 @@ void SequenceMCUHandler::RegisterNotification(void (*listener_handler)()) {
     listener_handlers.push_back(listener_handler);
 }
 
+/*
 void SequenceMCUHandler::StartPolling() {
 
     std::cerr << "START POLLING CALLED" << std::endl;
@@ -200,6 +199,49 @@ void SequenceMCUHandler::StartPolling() {
 
             // If cancelled, break loop
             if (ec == boost::asio::error::operation_aborted) break;
+        }
+    });
+}
+*/
+
+void SequenceMCUHandler::StartPolling() {
+    std::cerr << "START POLLING CALLED" << std::endl;
+    
+    RunPollLoop(seq_mcu_ctx_.power_state, seq_mcu_ctx_.transition_cause);
+}
+
+void SequenceMCUHandler::RunPollLoop(McuPowerState last_state, TransitionCause last_cause) {
+    if (stop_dbus_refresh_) {
+        return;
+    }
+
+    McuPowerState current_state = seq_mcu_ctx_.power_state;
+    TransitionCause current_cause = seq_mcu_ctx_.transition_cause;
+
+    std::cerr << "Poll Loop Power State: " 
+              << static_cast<int>(std::to_underlying(current_state)) 
+              << std::endl;
+              
+    std::cerr << "Poll Loop Transition Cause: " 
+              << static_cast<int>(std::to_underlying(current_cause)) 
+              << std::endl;
+
+    #ifdef CACHE_CHANGE_LOGIC
+    if (last_state != current_state || last_cause != current_cause) {
+        for (const auto& event_listener : this->listener_handlers) {
+            if (event_listener) event_listener();
+        }
+        // Update history to match current for next iteration
+        last_state = current_state;
+        last_cause = current_cause;
+    }
+    #endif
+
+    poll_timer_.expires_after(std::chrono::seconds(1));
+
+    poll_timer_.async_wait([this, last_state, last_cause](const boost::system::error_code& ec) {
+        if (!ec) {
+            this->RunPollLoop(last_state, last_cause);
         }
     });
 }

@@ -23,7 +23,6 @@ executable(
     sdbusplus,
     phosphor_dbus_interfaces,
     phosphor_logging,
-    boost_coroutine
   ],
   install : true,
   implicit_include_directories: false,
