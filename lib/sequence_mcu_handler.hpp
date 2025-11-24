@@ -52,7 +52,6 @@
 #include <phosphor-logging/lg2.hpp>
 #include <unordered_map>
 #include <thread>
-#include <boost/asio/io_context.hpp>
 
 #include <chrono>
 using namespace std::chrono_literals;
