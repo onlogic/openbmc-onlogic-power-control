@@ -12,5 +12,6 @@ libsystemd = dependency('libsystemd')
 sdbusplus = dependency('sdbusplus')
 phosphor_dbus_interfaces = dependency('phosphor-dbus-interfaces')
 phosphor_logging = dependency('phosphor-logging')
+boost = dependency('boost', modules : ['program_options', 'asio'])
 
 subdir('src')
