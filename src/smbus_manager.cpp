@@ -5,24 +5,24 @@ SMBUSManager::SMBUSManager(const std::string& i2c_device, uint8_t device_address
 
 SMBUSManager::~SMBUSManager() {
     if (fd_ >= 0) {
-        info("SMBUS_MANAGER :: Destroying FD");
+        info("SMBUSManager :: Destroying FD");
         close(fd_);
     }
 }
 
 int SMBUSManager::InitSMBUSManager() {
     if (fd_ >= 0) {
-        info("SMBUS_MANAGER :: The FD is already in use.");
+        info("SMBUSManager :: The FD is already in use.");
         return 0;
     }
 
     fd_ = open(i2c_device_.c_str(), O_RDWR);
     if (fd_ < 0) {
-        error("SMBUS_MANAGER :: ioctl failed: {ERROR_NO}", "ERROR_NO", strerror(errno));
+        error("SMBUSManager :: ioctl failed: {ERROR_NO}", "ERROR_NO", strerror(errno));
         return -1;
     }
 
-    info("SMBUS_MANAGER :: Successfully initialized FD");
+    info("SMBUSManager :: Successfully initialized FD");
 
     return 0;
 }
@@ -30,17 +30,17 @@ int SMBUSManager::InitSMBUSManager() {
 int SMBUSManager::SmbusSubaddressReadByte(uint8_t subaddress, uint8_t* resultant) {
     if (fd_ < 0) {
         errno = ENXIO;
-        error("SMBUS_MANAGER :: FD error, did you correctly initialize the SMBUS?: {ERROR_NO}",
+        error("SMBUSManager :: FD error, did you correctly initialize the SMBUS?: {ERROR_NO}",
               "ERROR_NO", errno);
         return -1;
     }
 
     if (ioctl(fd_, I2C_SLAVE, device_address_) < 0) {
-        error("SMBUS_MANAGER :: ioctl failed: {ERROR_NO}", "ERROR_NO", errno);
+        error("SMBUSManager :: ioctl failed: {ERROR_NO}", "ERROR_NO", errno);
         return -1;
     }
 
-    debug("SMBUS_MANAGER :: Read Address {ADDRESS},  subaddress {SUBADDRESS}", 
+    debug("SMBUSManager :: Read Address {ADDRESS},  subaddress {SUBADDRESS}", 
           "ADDRESS"   , device_address_,
           "SUBADDRESS", subaddress);
 
@@ -54,12 +54,12 @@ int SMBUSManager::SmbusSubaddressReadByte(uint8_t subaddress, uint8_t* resultant
 
     int ret = ioctl(fd_, I2C_SMBUS, &subaddress_read_byte_settings);
     if (ret != 0) {
-        error("SMBUS_MANAGER :: single byte read operation failed: {ERROR_NO}", "ERROR_NO", errno);
+        error("SMBUSManager :: single byte read operation failed: {ERROR_NO}", "ERROR_NO", errno);
         return -1;
     }
     *resultant = data.byte;
 
-    info("SMBUS_MANAGER :: Read subaddress {SUBADDR} (decimal), value = {VAL} (decimal)",
+    info("SMBUSManager :: Read subaddress {SUBADDR} (decimal), value = {VAL} (decimal)",
          "SUBADDR", subaddress, "VAL", *resultant);
 
     return 0;
@@ -68,24 +68,24 @@ int SMBUSManager::SmbusSubaddressReadByte(uint8_t subaddress, uint8_t* resultant
 int SMBUSManager::SmbusSubaddressReadByteBlock(uint8_t subaddress, size_t size_requested, uint8_t* resultant, size_t* size_read) {
     if (fd_ < 0) {
         errno = ENXIO;
-        error("SMBUS_MANAGER :: FD error, did you correctly initialize the SMBUS?: {ERROR_NO}",
+        error("SMBUSManager :: FD error, did you correctly initialize the SMBUS?: {ERROR_NO}",
               "ERROR_NO", errno);
         return -1;
     }
 
     if (ioctl(fd_, I2C_SLAVE, device_address_) < 0) {
-        error("SMBUS_MANAGER :: ioctl failed: {ERROR_NO}", "ERROR_NO", errno);
+        error("SMBUSManager :: ioctl failed: {ERROR_NO}", "ERROR_NO", errno);
         return -1;
     }
 
     if (size_requested > I2C_SMBUS_BLOCK_MAX) {
         errno = E2BIG;
-        error("SMBUS_MANAGER :: size_requested too large for max SMBUS multi-byte read operation: {ERROR_NO}", 
+        error("SMBUSManager :: size_requested too large for max SMBUS multi-byte read operation: {ERROR_NO}", 
               "ERROR_NO", strerror(errno));
         return -1;
     }
 
-    debug("SMBUS_MANAGER :: Read Address {ADDRESS},  subaddress {SUBADDRESS}", 
+    debug("SMBUSManager :: Read Address {ADDRESS},  subaddress {SUBADDRESS}", 
           "ADDRESS"   , device_address_,
           "SUBADDRESS", subaddress);
 
@@ -100,7 +100,7 @@ int SMBUSManager::SmbusSubaddressReadByteBlock(uint8_t subaddress, size_t size_r
 
     int ret = ioctl(fd_, I2C_SMBUS, &subaddress_read_byte_settings);
     if (ret != 0) {
-        error("SMBUS_MANAGER :: block read operation failed: {ERROR_NO}", "ERROR_NO", errno);
+        error("SMBUSManager :: block read operation failed: {ERROR_NO}", "ERROR_NO", errno);
         return -1;
     }
     *size_read = (size_t)data.block[0];
@@ -116,13 +116,13 @@ int SMBUSManager::SmbusSubaddressReadByteBlock(uint8_t subaddress, size_t size_r
 int SMBUSManager::SmbusWriteByte(uint8_t subaddress, uint8_t value) {
     if (fd_ < 0) {
         errno = ENXIO;
-        error("SMBUS_MANAGER :: FD error, did you correctly initialize the SMBUS: {ERROR_NO}",
+        error("SMBUSManager :: FD error, did you correctly initialize the SMBUS: {ERROR_NO}",
               "ERROR_NO", strerror(errno));
         return -1;
     }
 
     if (ioctl(fd_, I2C_SLAVE, device_address_) < 0) {
-        error("SMBUS_MANAGER :: ioctl failed: {ERROR_NO}", "ERROR_NO", strerror(errno));
+        error("SMBUSManager :: ioctl failed: {ERROR_NO}", "ERROR_NO", strerror(errno));
         return -1;
     }
 
@@ -137,7 +137,7 @@ int SMBUSManager::SmbusWriteByte(uint8_t subaddress, uint8_t value) {
 
     int ret = ioctl(fd_, I2C_SMBUS, &byte_write_settings);
     if (ret < 0) {
-        error("SMBUS_MANAGER :: ioctl write-byte failed: {ERROR_NO}", "ERROR_NO", errno);
+        error("SMBUSManager :: ioctl write-byte failed: {ERROR_NO}", "ERROR_NO", errno);
         return -1;
     }
 
@@ -147,19 +147,19 @@ int SMBUSManager::SmbusWriteByte(uint8_t subaddress, uint8_t value) {
 int SMBUSManager::SmbusWriteByteMulti(uint8_t subaddress, uint8_t* value_arr, size_t size_value_arr) {
     if (fd_ < 0) {
         errno = ENXIO; 
-        error("SMBUS_MANAGER :: FD error, did you correctly initialize the SMBUS: {ERROR_NO}", 
+        error("SMBUSManager :: FD error, did you correctly initialize the SMBUS: {ERROR_NO}", 
               "ERROR_NO", strerror(errno));
         return -1;
     }
 
     if (ioctl(fd_, I2C_SLAVE, device_address_) < 0) {
-        error("SMBUS_MANAGER :: ioctl failed: {ERROR_NO}", "ERROR_NO", strerror(errno));
+        error("SMBUSManager :: ioctl failed: {ERROR_NO}", "ERROR_NO", strerror(errno));
         return -1;
     }
 
     if (size_value_arr > I2C_SMBUS_BLOCK_MAX) {
         errno = E2BIG;
-        error("SMBUS_MANAGER :: size_value_arr size too large for max SMBUS multi-byte write operation: {ERROR_NO}", 
+        error("SMBUSManager :: size_value_arr size too large for max SMBUS multi-byte write operation: {ERROR_NO}", 
               "ERROR_NO", strerror(errno));
         return -1;
     }
@@ -178,7 +178,7 @@ int SMBUSManager::SmbusWriteByteMulti(uint8_t subaddress, uint8_t* value_arr, si
 
     int ret = ioctl(fd_, I2C_SMBUS, &subaddress_read_byte_settings);
     if (ret < 0) {
-        error("SMBUS_MANAGER :: ioctl multi-write byte failed: {ERROR_NO}", "ERROR_NO", errno);
+        error("SMBUSManager :: ioctl multi-write byte failed: {ERROR_NO}", "ERROR_NO", errno);
         return -1;
     }
 

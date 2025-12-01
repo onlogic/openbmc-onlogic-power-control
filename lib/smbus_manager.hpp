@@ -23,8 +23,7 @@
  *      https://linux.kernel.narkive.com/PeNlDZ1K/i2c-smbus-question
  */
 
-#ifndef SMBUS_MANAGER_HPP_
-#define SMBUS_MANAGER_HPP_
+#pragma once
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -64,12 +63,43 @@ class SMBUSManager {
         SMBUSManager(const std::string& i2c_device, uint8_t device_address);
         ~SMBUSManager();
         
+        /**
+         * @brief Initialize the SMBUS manager and open the I2C device.
+         * @return int 0 on success, negative value on error.
+         */
         int InitSMBUSManager();
 
+        /**
+         * @brief Read a single byte from a given SMBus subaddress.
+         * @param subaddress The SMBus subaddress to read from.
+         * @param resultant Pointer to store the read byte.
+         * @return int 0 on success, negative value on error.
+         */
         int SmbusSubaddressReadByte(uint8_t subaddress, uint8_t* resultant);
+        /**
+         * @brief Read a block of bytes from a given SMBus subaddress.
+         * @param subaddress The SMBus subaddress to read from.
+         * @param size_requested Number of bytes to read.
+         * @param resultant Pointer to buffer to store the read bytes.
+         * @param size_read Pointer to store the actual number of bytes read.
+         * @return int 0 on success, negative value on error.
+         */
         int SmbusSubaddressReadByteBlock(uint8_t subaddress, size_t size_requested, uint8_t* resultant, size_t* size_read);
 
+        /**
+         * @brief Write a single byte to a given SMBus subaddress.
+         * @param subaddress The SMBus subaddress to write to.
+         * @param value The byte value to write.
+         * @return int 0 on success, negative value on error.
+         */
         int SmbusWriteByte(uint8_t subaddress, uint8_t value);
+        /**
+         * @brief Write multiple bytes to a given SMBus subaddress.
+         * @param subaddress The SMBus subaddress to write to.
+         * @param value_arr Pointer to array of bytes to write.
+         * @param size_value_arr Number of bytes to write from the array.
+         * @return int 0 on success, negative value on error.
+         */
         int SmbusWriteByteMulti(uint8_t subaddress, uint8_t* value_arr, size_t size_value_arr);
 
     private:
@@ -77,5 +107,3 @@ class SMBUSManager {
         uint8_t device_address_ = 0;
         int fd_ = -1;
 };
-
-#endif // SMBUS_MANAGER_HPP_
