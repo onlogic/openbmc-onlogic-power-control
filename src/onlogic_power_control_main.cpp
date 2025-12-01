@@ -1,8 +1,8 @@
+#include <CLI/CLI.hpp>
 #include <phosphor-logging/lg2.hpp>
 #include <sdbusplus/server.hpp>
 #include <sdbusplus/asio/connection.hpp>
 #include <boost/asio/io_context.hpp>
-#include <boost/program_options.hpp>
 #include <org/openbmc/control/Power/server.hpp>
 
 #include "smbus_manager.hpp"
@@ -10,8 +10,6 @@
 #include "object_server.hpp"
 #include "chassis.hpp"
 #include "host.hpp"
-
-#include <iostream>
 
 PHOSPHOR_LOG2_USING;
 
@@ -28,25 +26,14 @@ public:
 };
 
 int main(int argc, char* argv[]) {
-    namespace po = boost::program_options;
+    CLI::App app{"OnLogic Power Control Service"};
 
-    po::options_description desc("Allowed options");
-    desc.add_options()
-        ("help,h", "produce help message")
-        ("node,n", po::value<std::string>()->default_value("0"), "Node number of the host to manage")
-        ("i2c-interface,i", po::value<std::string>()->default_value("/dev/i2c-1"), "I2C interface to use for SMBus communication");
+    std::string node;
+    app.add_option("-n,--node", node, "Node number of the host to manage")->default_val("0");
+    std::string i2cInterface;
+    app.add_option("-i,--i2c-interface", i2cInterface, "I2C interface to use for SMBus communication")->default_val("/dev/i2c-1");
 
-    po::variables_map vm;
-    po::store(po::parse_command_line(argc, argv, desc), vm);
-    po::notify(vm);
-
-     if (vm.count("help")) {
-        std::cerr << desc << "\n";
-        return 1;
-    }
-
-    static std::string node = vm["node"].as<std::string>();
-    static std::string i2cInterface = vm["i2c-interface"].as<std::string>();
+    CLI11_PARSE(app, argc, argv);
 
     if (node != "0") {
         error("Host{NODE}: Non-0 host not supported...", "NODE", node);
