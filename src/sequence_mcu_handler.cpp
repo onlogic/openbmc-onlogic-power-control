@@ -246,11 +246,17 @@ void SequenceMCUHandler::RunPollLoop(McuPowerState last_state, TransitionCause l
     McuPowerState current_state = seq_mcu_ctx_.power_state;
     TransitionCause current_cause = seq_mcu_ctx_.transition_cause;
 
-    info("SequenceMCUHandler :: Poll Loop Power State: {STATE}", "STATE", 
-        static_cast<int>(std::to_underlying(current_state)));
-    
-    info("SequenceMCUHandler :: Poll Loop Transition Cause: {CAUSE}", "CAUSE", 
-        static_cast<int>(std::to_underlying(current_cause)));
+    if (last_state != current_state) {
+        info("SequenceMCUHandler :: State change detected. New State: {NEW_STATE}, Old State: {OLD_STATE}", 
+            "NEW_STATE", static_cast<int>(std::to_underlying(current_state)), 
+            "OLD_STATE", static_cast<int>(std::to_underlying(last_state)));
+    }
+
+    if (last_cause != current_cause) {
+        info("SequenceMCUHandler :: Transition Cause change detected. New Cause: {NEW_CAUSE}, Old Cause: {OLD_CAUSE}", 
+            "NEW_CAUSE", static_cast<int>(std::to_underlying(current_cause)), 
+            "OLD_CAUSE", static_cast<int>(std::to_underlying(last_cause)));
+    }
 
     #ifdef CACHE_CHANGE_LOGIC
     if (last_state != current_state || last_cause != current_cause) {
