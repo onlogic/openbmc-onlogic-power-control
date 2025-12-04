@@ -88,8 +88,6 @@ enum class TransitionCause : uint8_t {
 }; 
 
 enum class CommandCode : uint8_t {
-    GetPowerstate                           = 0x00, // Subaddress for [W/R]
-    GetTransitionCause                      = 0x01, // Subaddress for [W/R]
     GetPowerStateAndTransitionCause         = 0x02, // Subaddress for [W/R] (2 Byte types: [power_state_t, transition_cause_t])
     GetCapabilities                         = 0x03, // Subaddress for [W/R]
     SetPowerState                           = 0x04, // Command code for [W], ex. [SetPowerState, kPowerEvent]

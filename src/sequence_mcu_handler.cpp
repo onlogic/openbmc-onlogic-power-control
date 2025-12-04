@@ -279,45 +279,21 @@ void SequenceMCUHandler::RunPollLoop(McuPowerState last_state, TransitionCause l
 }
 
 SMBUSOperationStatus SequenceMCUHandler::GetMcuPowerState(McuPowerState& current_power_state) {
-    info("SequenceMCUHandler :: GetMcuPowerState called");
-    uint8_t output;
-    int operation_status = sequence_smbus_instance_.SmbusSubaddressReadByte(
-        std::to_underlying(CommandCode::GetPowerstate), &output);
-
-    if (operation_status < 0) {
-        error("SequenceMCUHandler :: GetMcuPowerState failed: Protocol error");
-        return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
+    std::pair<McuPowerState, TransitionCause> state_cause_pair = {};
+    auto status = GetStateAndTransitionCause(state_cause_pair);
+    if (status == SMBUSOperationStatus::kSMBUSOperationStatus_Success) {
+        current_power_state = state_cause_pair.first;
     }
-
-    current_power_state = static_cast<McuPowerState>(output);
-    
-    // Update Cache
-    seq_mcu_ctx_.power_state = current_power_state;
-
-    info("SequenceMCUHandler :: GetMcuPowerState success. State: {STATE}", "STATE", static_cast<int>(current_power_state));
-
-    return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
+    return status;
 }
 
 SMBUSOperationStatus SequenceMCUHandler::GetTransitionCause(TransitionCause& transition_cause) {
-    info("SequenceMCUHandler :: GetTransitionCause called");
-    uint8_t output;
-    int operation_status = sequence_smbus_instance_.SmbusSubaddressReadByte(
-        std::to_underlying(CommandCode::GetTransitionCause), &output);
-
-    if (operation_status < 0) {
-        error("SequenceMCUHandler :: GetTransitionCause failed: Protocol error");
-        return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
+    std::pair<McuPowerState, TransitionCause> state_cause_pair = {};
+    auto status = GetStateAndTransitionCause(state_cause_pair);
+    if (status == SMBUSOperationStatus::kSMBUSOperationStatus_Success) {
+        transition_cause = state_cause_pair.second;
     }
-
-    transition_cause = static_cast<TransitionCause>(output);
-
-    // Update Cache
-    seq_mcu_ctx_.transition_cause = transition_cause;
-
-    info("SequenceMCUHandler :: GetTransitionCause success. Cause: {CAUSE}", "CAUSE", static_cast<int>(transition_cause));
-
-    return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
+    return status;
 }
 
 SMBUSOperationStatus SequenceMCUHandler::GetCapability(SMBUSCapability& get_capability) {
