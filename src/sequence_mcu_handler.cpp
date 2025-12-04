@@ -271,9 +271,9 @@ void SequenceMCUHandler::RunPollLoop(McuPowerState last_state, TransitionCause l
 
     poll_timer_.expires_after(std::chrono::seconds(1));
 
-    poll_timer_.async_wait([this, last_state, last_cause](const boost::system::error_code& ec) {
+    poll_timer_.async_wait([this, current_state, current_cause](const boost::system::error_code& ec) {
         if (!ec) {
-            this->RunPollLoop(last_state, last_cause);
+            this->RunPollLoop(current_state, current_cause);
         }
     });
 }
