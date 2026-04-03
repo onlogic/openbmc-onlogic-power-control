@@ -126,13 +126,13 @@ enum class SMBUSCapability : uint8_t {
 };
 
 class SequenceMCUHandler {
-    public:
-        SequenceMCUHandler(SMBUSManager& smbus_init,
-                           boost::asio::io_context& io);
+public:
+    SequenceMCUHandler(SMBUSManager& smbus_init,
+                        boost::asio::io_context& io);
 
-        ~SequenceMCUHandler();
+    ~SequenceMCUHandler();
 
-        std::vector<void(*)()> listener_handlers;
+    std::vector<void(*)()> listener_handlers;
     /**
      * @brief Register a notification listener for MCU events.
      * @param listener_handler Function pointer to the event handler.
@@ -209,52 +209,49 @@ class SequenceMCUHandler {
      * @brief Get the cached SMBus capability value.
      * @return SMBUSCapability Cached capability value.
      */
-    inline SMBUSCapability GetSMBUSCapabilityCache() { return seq_mcu_ctx_.capabilities; };
+    inline SMBUSCapability GetSMBUSCapabilityCache() { return current_state.capabilities; };
     /**
      * @brief Get the cached MCU power state value.
      * @return McuPowerState Cached power state value.
      */
-    inline McuPowerState GetMcuPowerStateCache() { return seq_mcu_ctx_.power_state; };
+    inline McuPowerState GetMcuPowerStateCache() { return current_state.power_state; };
     /**
      * @brief Get the cached transition cause value.
      * @return TransitionCause Cached transition cause value.
      */
-    inline TransitionCause GetTransitionCauseCache() { return seq_mcu_ctx_.transition_cause; };
+    inline TransitionCause GetTransitionCauseCache() { return current_state.transition_cause; };
 
-        // Cache of important operational details
-        struct SequenceMcuContext {
-            SMBUSCapability capabilities;
-            McuPowerState power_state;
-            TransitionCause transition_cause;
-        };
+    // Cache of important operational details
+    struct SequenceMcuContext {
+        SMBUSCapability capabilities;
+        McuPowerState power_state;
+        TransitionCause transition_cause;
+    };
 
-    private:
-        SMBUSManager& sequence_smbus_instance_;
-        SequenceMcuContext seq_mcu_ctx_;
+private:
+    SMBUSManager& sequence_smbus_instance_;
+    SequenceMcuContext current_state;
 
-        boost::asio::steady_timer poll_timer_;
-        bool stop_dbus_refresh_{false};
+    boost::asio::steady_timer poll_timer_;
+    bool stop_dbus_refresh_{false};
 
     /**
-     * @brief Internal: Run the polling loop for MCU state and transition cause.
-     * @param last_state Last known MCU power state.
-     * @param last_cause Last known transition cause.
+     * @brief Internal: Updates the local system state cache.
      * @return void
      */
-    void RunPollLoop(McuPowerState last_state, TransitionCause last_cause);
+    void CacheSystemState();
 
-        // TODO: Atomic variable that will stop fired commands when a new one comes in
-        //       if execution flow overlaps
-        // std::atomic<bool> stop_write_operation_{true};
+    // TODO: Atomic variable that will stop fired commands when a new one comes in
+    //       if execution flow overlaps
+    // std::atomic<bool> stop_write_operation_{true};
+    inline SequenceMcuContext InitSequenceMcuContext(void) {
+        SequenceMcuContext init_return = {
+            .capabilities     = SMBUSCapability::kSmbusCapabilities_Unknown,
+            .power_state      = McuPowerState::kSLP_Unknown,
+            .transition_cause = TransitionCause::kTransitionCause_Unknown,                
+        };
 
-        inline SequenceMcuContext InitSequenceMcuContext(void) {
-            SequenceMcuContext init_return = {
-                .capabilities     = SMBUSCapability::kSmbusCapabilities_Unknown,
-                .power_state      = McuPowerState::kSLP_Unknown,
-                .transition_cause = TransitionCause::kTransitionCause_Unknown,                
-            };
-
-            return init_return;
+        return init_return;
     };
 };
 

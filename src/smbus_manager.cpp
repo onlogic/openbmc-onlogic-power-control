@@ -107,7 +107,7 @@ int SMBUSManager::SmbusSubaddressReadByteBlock(uint8_t subaddress, size_t size_r
     memcpy(resultant, &data.block[1], *size_read);
 
     for (size_t i = 0; i < *size_read; ++i) {
-        info("RESULTANT INDEX: {INDEX} VAL: {VAL}", "INDEX", i, "VAL", resultant[i]);
+        debug("RESULTANT INDEX: {INDEX} VAL: {VAL}", "INDEX", i, "VAL", resultant[i]);
     }
 
     return 0;

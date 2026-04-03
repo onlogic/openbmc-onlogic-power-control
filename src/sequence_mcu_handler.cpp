@@ -5,8 +5,8 @@
 SequenceMCUHandler::SequenceMCUHandler(SMBUSManager& smbus_init,
                                        boost::asio::io_context& io) :
     sequence_smbus_instance_(smbus_init),
-    seq_mcu_ctx_(InitSequenceMcuContext()),
-    poll_timer_(io),
+    current_state(InitSequenceMcuContext()),
+    poll_timer_(io, std::chrono::milliseconds(500)),
     stop_dbus_refresh_(false)
     {}
 
@@ -128,16 +128,16 @@ SMBUSOperationStatus SequenceMCUHandler::IssueSoftShutdown(uint8_t retries) {
             = sequence_smbus_instance_.SmbusWriteByte(std::to_underlying(CommandCode::SetPowerState),
                                                       std::to_underlying(PowerEvent::kPowerEvent_SoftOff));
         if (operation_status < 0) {
-            error("SequenceMCUHandler :: IssueSoftShutdown failed: Retry Attempt: {RETRIES}", "RETRIES", attempt + 1);
+            error("SequenceMCUHandler :: IssueSoftShutdown failed: Retry Attempt: {ATTEMPT}", "ATTEMPT", attempt + 1);
             std::this_thread::sleep_for(1000ms);
             continue;
         } else {
-            info("SequenceMCUHandler :: IssueSoftShutdown command sent.");
+            debug("SequenceMCUHandler :: IssueSoftShutdown command sent.");
             return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
         }
     }
 
-    info("SequenceMCUHandler :: IssueSoftShutdown command Failed.");
+    error("SequenceMCUHandler :: IssueSoftShutdown command Failed.");
     return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
 }
 
@@ -159,12 +159,12 @@ SMBUSOperationStatus SequenceMCUHandler::IssueHardShutdown(uint8_t retries) {
             std::this_thread::sleep_for(1000ms);
             continue;
         } else {
-            info("SequenceMCUHandler :: IssueHardShutdown command sent.");
+            debug("SequenceMCUHandler :: IssueHardShutdown command sent.");
             return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
         }
     }
 
-    info("SequenceMCUHandler :: IssueHardShutdown command Failed.");
+    error("SequenceMCUHandler :: IssueHardShutdown command Failed.");
     return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
 }
 
@@ -232,30 +232,51 @@ void SequenceMCUHandler::StartPolling() {
 #endif
 
 void SequenceMCUHandler::StartPolling() {
-    info("SequenceMCUHandler :: Begin Polling State Cache"); 
-    
-    RunPollLoop(seq_mcu_ctx_.power_state, seq_mcu_ctx_.transition_cause);
+    // Reschedule the timer for the next poll
+    poll_timer_.expires_after(std::chrono::milliseconds(500));
+
+    poll_timer_.async_wait([this](const boost::system::error_code& ec) {
+        if (ec == boost::asio::error::operation_aborted || stop_dbus_refresh_) {
+            info("SequenceMCUHandler :: Poll timer aborted");
+            return;
+        } else if (ec) {
+            error("SequenceMCUHandler :: Poll timer error, ending: {ERROR}", "ERROR", ec.message());
+            return;
+        }
+
+        try {
+            // Perform the polling operation
+            CacheSystemState();
+        } catch (const std::exception& e) {
+            error("SequenceMCUHandler :: System state caching failed, will retry on next poll: {ERROR}", "ERROR", e.what());
+        }
+
+        // Recursive call to continue polling
+        StartPolling();
+    });
 }
 
-void SequenceMCUHandler::RunPollLoop(McuPowerState last_state, TransitionCause last_cause) {
-    if (stop_dbus_refresh_) {
+void SequenceMCUHandler::CacheSystemState() {
+    // Update current state using cached variable
+    std::pair<McuPowerState, TransitionCause> state_update = {};
+    auto status = GetStateAndTransitionCause(state_update);
+    if (status != SMBUSOperationStatus::kSMBUSOperationStatus_Success) {
+        error("SequenceMCUHandler :: PollSystemState failed to get state and cause: {STATUS}", "STATUS", static_cast<int>(status));
         return;
     }
 
-    // Update current state using cached variable
-    McuPowerState current_state = seq_mcu_ctx_.power_state;
-    TransitionCause current_cause = seq_mcu_ctx_.transition_cause;
-
-    if (last_state != current_state) {
+    if (current_state.power_state != state_update.first) {
         info("SequenceMCUHandler :: State change detected. New State: {NEW_STATE}, Old State: {OLD_STATE}", 
-            "NEW_STATE", static_cast<int>(std::to_underlying(current_state)), 
-            "OLD_STATE", static_cast<int>(std::to_underlying(last_state)));
+            "NEW_STATE", static_cast<int>(std::to_underlying(state_update.first)), 
+            "OLD_STATE", static_cast<int>(std::to_underlying(current_state.power_state)));
+        current_state.power_state = state_update.first;
     }
 
-    if (last_cause != current_cause) {
+    if (current_state.transition_cause != state_update.second) {
         info("SequenceMCUHandler :: Transition Cause change detected. New Cause: {NEW_CAUSE}, Old Cause: {OLD_CAUSE}", 
-            "NEW_CAUSE", static_cast<int>(std::to_underlying(current_cause)), 
-            "OLD_CAUSE", static_cast<int>(std::to_underlying(last_cause)));
+            "NEW_CAUSE", static_cast<int>(std::to_underlying(state_update.second)), 
+            "OLD_CAUSE", static_cast<int>(std::to_underlying(current_state.transition_cause)));
+        current_state.transition_cause = state_update.second;
     }
 
     #ifdef CACHE_CHANGE_LOGIC
@@ -268,36 +289,20 @@ void SequenceMCUHandler::RunPollLoop(McuPowerState last_state, TransitionCause l
         last_cause = current_cause;
     }
     #endif
-
-    poll_timer_.expires_after(std::chrono::seconds(1));
-
-    poll_timer_.async_wait([this, current_state, current_cause](const boost::system::error_code& ec) {
-        if (!ec) {
-            this->RunPollLoop(current_state, current_cause);
-        }
-    });
 }
 
 SMBUSOperationStatus SequenceMCUHandler::GetMcuPowerState(McuPowerState& current_power_state) {
-    std::pair<McuPowerState, TransitionCause> state_cause_pair = {};
-    auto status = GetStateAndTransitionCause(state_cause_pair);
-    if (status == SMBUSOperationStatus::kSMBUSOperationStatus_Success) {
-        current_power_state = state_cause_pair.first;
-    }
-    return status;
+    current_power_state = current_state.power_state;
+    return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
 }
 
 SMBUSOperationStatus SequenceMCUHandler::GetTransitionCause(TransitionCause& transition_cause) {
-    std::pair<McuPowerState, TransitionCause> state_cause_pair = {};
-    auto status = GetStateAndTransitionCause(state_cause_pair);
-    if (status == SMBUSOperationStatus::kSMBUSOperationStatus_Success) {
-        transition_cause = state_cause_pair.second;
-    }
-    return status;
+    transition_cause = current_state.transition_cause;
+    return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
 }
 
 SMBUSOperationStatus SequenceMCUHandler::GetCapability(SMBUSCapability& get_capability) {
-    info("SequenceMCUHandler :: GetCapability called");
+    debug("SequenceMCUHandler :: GetCapability called");
     uint8_t output;
     int operation_status = sequence_smbus_instance_.SmbusSubaddressReadByte(
         std::to_underlying(CommandCode::GetCapabilities), &output);
@@ -310,15 +315,15 @@ SMBUSOperationStatus SequenceMCUHandler::GetCapability(SMBUSCapability& get_capa
     get_capability = static_cast<SMBUSCapability>(output);
 
     // Update Cache
-    seq_mcu_ctx_.capabilities = get_capability;
+    current_state.capabilities = get_capability;
 
-    info("SequenceMCUHandler :: GetCapability success. Capability: {CAP}", "CAP", static_cast<int>(get_capability));
+    debug("SequenceMCUHandler :: GetCapability success. Capability: {CAP}", "CAP", static_cast<int>(get_capability));
 
     return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
 }
 
 SMBUSOperationStatus SequenceMCUHandler::GetStateAndTransitionCause(std::pair<McuPowerState, TransitionCause>& state_cause_pair) {
-    info("SequenceMCUHandler :: GetStateAndTransitionCause called");
+    debug("SequenceMCUHandler :: GetStateAndTransitionCause called");
     uint8_t buf[STATE_AND_TCAUSE_SIZE];
     size_t size_read;
 
@@ -333,19 +338,12 @@ SMBUSOperationStatus SequenceMCUHandler::GetStateAndTransitionCause(std::pair<Mc
         return SMBUSOperationStatus::kSMBUSOperationStatus_ProtocolError;
     }
 
-    McuPowerState raw_state = static_cast<McuPowerState>(buf[0]);
-    TransitionCause raw_cause = static_cast<TransitionCause>(buf[1]);
+    state_cause_pair.first = static_cast<McuPowerState>(buf[0]);
+    state_cause_pair.second = static_cast<TransitionCause>(buf[1]);
 
-    // Update Cache
-    state_cause_pair.first = raw_state;
-    state_cause_pair.second = raw_cause;
-
-    seq_mcu_ctx_.power_state = raw_state;
-    seq_mcu_ctx_.transition_cause = raw_cause;
-
-    info("SequenceMCUHandler :: GetStateAndTransitionCause success. State: {STATE}, Cause: {CAUSE}", "STATE", 
-        static_cast<int>(raw_state), 
-        "CAUSE", static_cast<int>(raw_cause));
+    debug("SequenceMCUHandler :: GetStateAndTransitionCause success. State: {STATE}, Cause: {CAUSE}",
+        "STATE", static_cast<int>(state_cause_pair.first),
+        "CAUSE", static_cast<int>(state_cause_pair.second));
 
     return SMBUSOperationStatus::kSMBUSOperationStatus_Success;
 }
