@@ -1,12 +1,12 @@
- /*
+// SPDX-FileCopyrightText: (c) 2026 OnLogic, Inc. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileContributor: Justin Seely <justin.seely@onlogic.com>
+// SPDX-FielContributor: Nicholas Hanna <nick.hanna@onlogic.com>  (SMBUS command set, MCU endpoint layer, MCU handler API, power control integration into DBus API, project structure)
+/*
  *  sequence_mcu_handler.hpp
  *
  *  Created on: November 11th, 2025
  *      Author: nick.hanna
- * 
- *  Internal Documentation:
- *      https://app.gitbook.com/o/YTmUofDhDJMJMEH1WaNo/s/StKxLxmDaS0JejoOwoAm
- *      /sequence-mcu-side-smbus-development-document-for-nxp-k32l-on-k800-r 
  * 
  *  Adheres to:
  *      https://google.github.io/styleguide/cppguide.html
@@ -35,7 +35,6 @@
  *      Mappings from SMBUS datatypes to DBUS interfaces are 
  *      contained within chassis.cpp and host.cpp
  */
-
 #pragma once
 
 #include <stdbool.h>
