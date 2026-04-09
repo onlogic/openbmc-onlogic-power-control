@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: (c) 2026 OnLogic, Inc. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0
+// SPDX-FileContributor: Justin Seely <justin.seely@onlogic.com>
+// SPDX-FielContributor: Nicholas Hanna <nick.hanna@onlogic.com>  (SMBUS command set, MCU endpoint layer, MCU handler API, power control integration into DBus API, project structure)
 #include <CLI/CLI.hpp>
 #include <phosphor-logging/lg2.hpp>
 #include <sdbusplus/server.hpp>
